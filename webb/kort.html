@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matchkort</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700;800&family=Saira+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="kort-sida">
+  <div class="kort-bar">
+    <a class="tillbaka" href="./#matcher">Alla matcher</a>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+      <div class="seg" role="group" aria-label="Formel">
+        <button type="button" data-formel="plus" aria-pressed="true">Game Score+</button>
+        <button type="button" data-formel="gs" aria-pressed="false">Original</button>
+      </div>
+      <a class="knapp" id="ladda" hidden download>Ladda ner bild</a>
+    </div>
+  </div>
+  <div class="kort-skala" id="skala">
+    <div class="yta" id="yta">
+      <div id="kort" role="img" aria-label="Matchkort">
+        <div class="k-top"><div class="k-mark" id="k-mark">Game Score+</div><div class="k-date" id="k-date"></div></div>
+        <div class="k-hero">
+          <div class="k-team"><div class="k-full" id="k-bn"></div><div class="k-abbr" id="k-bk"></div></div>
+          <div class="k-score"><span id="k-bm"></span><span class="dash">–</span><span id="k-hm"></span></div>
+          <div class="k-team right"><div class="k-full" id="k-hn"></div><div class="k-abbr" id="k-hk"></div></div>
+        </div>
+        <div class="k-decided" id="k-avg"></div>
+        <div class="k-stars" id="k-stars"><div class="h">Matchens stjärnor</div></div>
+        <div class="k-cols" id="k-cols"></div>
+        <div class="k-foot">
+          <div class="k-legend">
+            <span><i style="background: var(--svag)"></i>Svag, under 0</span>
+            <span><i style="background: var(--godk)"></i>Godkänd, 0 till 1</span>
+            <span><i style="background: var(--bra)"></i>Bra, 1 till 2</span>
+            <span><i style="background: var(--lys)"></i>Lysande, över 2</span>
+          </div>
+          <div class="k-explain" id="k-explain"></div>
+          <div class="k-src"><div id="k-src"></div><b id="k-sign"></b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="kort.js"></script>
+</body>
+</html>

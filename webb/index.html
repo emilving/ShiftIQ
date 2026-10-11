@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NHL Game Score</title>
+<meta name="description" content="Game Score för varje NHL-spelare och match, uppdaterat varje morgon.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700;800&family=Saira+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="mark" href="./">Game Score</a>
+    <div class="updated" id="updated"></div>
+  </div>
+
+  <h1 class="title" id="title">NHL</h1>
+  <div class="period" id="period"></div>
+  <p class="take" id="take"></p>
+
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Formel">
+      <button type="button" data-formel="plus" aria-pressed="true">Game Score+</button>
+      <button type="button" data-formel="gs" aria-pressed="false">Original</button>
+    </div>
+    <div class="legend" aria-label="Färgskala">
+      <span><i style="background: var(--svag)"></i>Svag, under 0</span>
+      <span><i style="background: var(--godk)"></i>Godkänd, 0 till 1</span>
+      <span><i style="background: var(--bra)"></i>Bra, 1 till 2</span>
+      <span><i style="background: var(--lys)"></i>Lysande, över 2</span>
+    </div>
+  </div>
+
+  <section class="stars" id="stars" aria-label="Säsongens stjärnor"></section>
+
+  <div class="figs">
+    <div class="fig"><div class="v" id="f-matcher">–</div><div class="l">matcher</div></div>
+    <div class="fig"><div class="v" id="f-spelare">–</div><div class="l">spelare</div></div>
+    <div class="fig"><div class="v" id="f-vinnare">–</div><div class="l">av matcherna vanns av laget med högst Game Score</div></div>
+  </div>
+
+  <nav class="tabs" role="tablist" aria-label="Avsnitt">
+    <button class="tab" role="tab" data-tab="spelare" aria-selected="true">Spelare</button>
+    <button class="tab" role="tab" data-tab="lag" aria-selected="false">Lag</button>
+    <button class="tab" role="tab" data-tab="malvakter" aria-selected="false">Målvakter</button>
+    <button class="tab" role="tab" data-tab="matcher" aria-selected="false">Matcher</button>
+    <button class="tab" role="tab" data-tab="topp" aria-selected="false">Bästa och sämsta</button>
+    <button class="tab" role="tab" data-tab="om" aria-selected="false">Så funkar det</button>
+  </nav>
+
+  <section class="panel" id="spelare" role="tabpanel">
+    <h2>Spelare</h2>
+    <p class="note">Snitt per match. Stapeln visar hur bra spelaren varit, färgen vilken nivå det motsvarar.</p>
+    <div class="filters">
+      <select id="f-lag" aria-label="Lag"><option value="">Alla lag</option></select>
+      <div class="seg" role="group" aria-label="Position" id="f-pos">
+        <button type="button" data-pos="" aria-pressed="true">Alla</button>
+        <button type="button" data-pos="F" aria-pressed="false">Forwards</button>
+        <button type="button" data-pos="B" aria-pressed="false">Backar</button>
+      </div>
+      <label class="check"><input type="checkbox" id="f-min" checked> Minst 3 matcher</label>
+      <input type="search" id="f-q" placeholder="Sök spelare" aria-label="Sök spelare">
+    </div>
+    <div class="box">
+      <table class="rows" id="t-spelare">
+        <thead><tr>
+          <th class="rk">#</th><th>Spelare</th><th class="hn">Lag</th><th class="hn">Pos</th>
+          <th class="n hn"><button type="button" data-sort="gp">Matcher</button></th>
+          <th class="barc" aria-hidden="true"></th>
+          <th class="n"><button type="button" data-sort="avg">Snitt</button></th>
+          <th class="n hn"><button type="button" data-sort="sum">Summa</button></th>
+          <th class="n hn"><button type="button" data-sort="p">Poäng</button></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="count" id="c-spelare"></div>
+  </section>
+
+  <section class="panel" id="lag" role="tabpanel" hidden>
+    <h2>Lag</h2>
+    <p class="note">Tabellen med lagets sammanlagda Game Score per match. Klicka på ett lag för att se dess spelare.</p>
+    <div class="box">
+      <table class="rows" id="t-lag">
+        <thead><tr>
+          <th class="rk">#</th><th>Lag</th><th class="n">M</th><th class="n">V</th><th class="n hn">F</th><th class="n hn">FÖ</th>
+          <th class="n">P</th><th class="n hn">Mål</th><th class="barc" aria-hidden="true"></th><th class="n">GS/match</th><th class="hn">Bäst i laget</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" id="malvakter" role="tabpanel" hidden>
+    <h2>Målvakter</h2>
+    <p class="note" id="n-mv"></p>
+    <div class="box">
+      <table class="rows" id="t-mv">
+        <thead><tr>
+          <th class="rk">#</th><th>Målvakt</th><th class="hn">Lag</th><th class="n">Matcher</th>
+          <th class="barc" aria-hidden="true"></th><th class="n">Snitt</th><th class="n hn">Rädd.%</th><th class="n hn">GSAx</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" id="matcher" role="tabpanel" hidden>
+    <h2>Matcher</h2>
+    <p class="note">Alla färdigspelade matcher, senaste först. Klicka för att se matchkortet.</p>
+    <div id="games"></div>
+  </section>
+
+  <section class="panel" id="topp" role="tabpanel" hidden>
+    <div class="two">
+      <div>
+        <h2>Bästa matcherna</h2>
+        <p class="note">Högsta värdet en spelare fått i en enskild match.</p>
+        <div class="box"><table class="rows" id="t-bast"><tbody></tbody></table></div>
+      </div>
+      <div>
+        <h2>Sämsta matcherna</h2>
+        <p class="note">Lägsta värdet en spelare fått i en enskild match.</p>
+        <div class="box"><table class="rows" id="t-samst"><tbody></tbody></table></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel about" id="om" role="tabpanel" hidden>
+    <h2>Vad är Game Score?</h2>
+    <p>Ett tal som sammanfattar hur bra en spelare var i en match. Det väger ihop poäng, skott, tekningar, utvisningar och hur det gick för laget när spelaren var på isen. Noll är en vanlig insats, och över 2 är en riktigt stark match.</p>
+    <h2>Två formler</h2>
+    <p><b>Original</b> är Dom Luszczyszyns Game Score från 2016. <b>Game Score+</b> är vår vidareutveckling. Den behåller originalets vikter för mål, assist, blockeringar, utvisningar och tekningar, men mäter chansernas kvalitet i stället för att bara räkna skott.</p>
+    <div class="formula">
+      <div><b>Utespelare:</b> 0.75 · mål + 0.7 · primär assist + 0.55 · sekundär assist + 1.0 · ixG + 0.05 · blockeringar + 0.15 · dragna utvisningar − 0.15 · tagna utvisningar + 0.01 · vunna tekningar − 0.01 · förlorade tekningar + 1.0 · (xGF − xGA) + 0.15 · (GF − GA)</div>
+      <div><b>Målvakt:</b> 0.75 · GSAx</div>
+    </div>
+    <ul>
+      <li><b>ixG</b> är spelarens egna förväntade mål: summan av hur stor chans varje skott hade att gå in, utifrån avstånd, vinkel, skottyp, returer och numerärt läge. Ett skott från blå linjen väger alltså mindre än ett friläge.</li>
+      <li><b>xGF − xGA</b> är förväntade mål för minus mot medan spelaren var på isen vid 5 mot 5. Det ersätter originalets räkning av skottförsök.</li>
+      <li><b>GF − GA</b> är riktiga mål för minus mot på isen vid 5 mot 5.</li>
+      <li><b>GSAx</b> är räddade mål över förväntan. En målvakt bedöms mot hur svåra skotten var, inte hur många de var. Noll är en normal insats.</li>
+    </ul>
+    <h2>Var siffrorna kommer ifrån</h2>
+    <p>All data hämtas direkt från NHL varje morgon och räknas om från grunden: händelser, byten och resultat. Förväntade mål räknas med en egen modell som tränas om på säsongens alla skott vid varje uppdatering, så äldre matchers Game Score+ kan ändras något över tid.</p>
+    <p id="dl"></p>
+  </section>
+
+  <footer class="foot">
+    <div>Data: NHL. Formel: Game Score+, vidareutvecklad från Dom Luszczyszyns Game Score.</div>
+    <div id="sign"></div>
+  </footer>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
