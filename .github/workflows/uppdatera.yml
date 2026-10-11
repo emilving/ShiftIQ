@@ -1,0 +1,85 @@
+name: Uppdatera statistik
+
+on:
+  schedule:
+    # Varje dag 07:17 UTC = 09:17 svensk sommartid, 08:17 vintertid.
+    # Då har alla nordamerikanska kvällsmatcher hunnit bli klara.
+    - cron: "17 7 * * *"
+  workflow_dispatch: # gör att du kan starta en körning för hand under fliken Actions
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: uppdatera
+  cancel-in-progress: false
+
+jobs:
+  bygg:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Hämta koden
+        uses: actions/checkout@v5
+
+      - name: Installera Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Installera paket och webbläsare för bilderna
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Hämta sparad matchdata från förra körningen
+        uses: actions/cache/restore@v5
+        with:
+          path: nhl_data
+          key: nhl-data-${{ github.run_id }}
+          restore-keys: |
+            nhl-data-
+
+      - name: Hämta nya matcher från NHL och räkna statistik
+        run: python nhl_stats.py --mapp nhl_data
+
+      - name: Bygg webbsidan och matchkorten
+        run: python bygg_sida.py --data nhl_data --ut site --bilder
+
+      - name: Spara matchdata till nästa körning
+        if: always()
+        uses: actions/cache/save@v5
+        with:
+          path: nhl_data
+          key: nhl-data-${{ github.run_id }}
+
+      - name: Spara tabellerna i projektet
+        run: |
+          SASONG=$(ls -d nhl_data/*/csv | sort | tail -1 | cut -d/ -f2)
+          mkdir -p statistik
+          cp "nhl_data/$SASONG/csv/Spelare.csv" "nhl_data/$SASONG/csv/Målvakter.csv" \
+             "nhl_data/$SASONG/csv/Lag.csv" "nhl_data/$SASONG/csv/Matcher.csv" statistik/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add statistik
+          git diff --cached --quiet || git commit -m "Statistik $(date -u +%F)"
+          git push
+
+      - name: Ladda upp webbsidan
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+  publicera:
+    needs: bygg
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Publicera på GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v5
