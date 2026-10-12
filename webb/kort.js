@@ -19,13 +19,31 @@
       node.appendChild(el('span', 'iq', 'IQ'));
     } else node.textContent = namn;
   }
-  function setLogo(img, src) {
-    img.onerror = function () { img.style.visibility = 'hidden'; };
-    if (src) { img.style.visibility = ''; img.src = src; } else img.style.visibility = 'hidden';
+  var FARG = window.LAGFARG || {};
+  function prick(abbr, size) {
+    var s = el('span', 'lagprick');
+    s.style.width = size + 'px'; s.style.height = size + 'px';
+    s.style.setProperty('--c', (FARG[abbr] || ['#9AA8B6'])[0]);
+    s.setAttribute('aria-hidden', 'true');
+    s.appendChild(el('i'));
+    return s;
   }
-  function smallLogo(src, size) {
+  // Byter en <img> mot lagets logga, eller mot en färgprick om loggor inte visas eller inte går att ladda.
+  function setLogo(slot, src, abbr) {
+    var size = parseInt(slot.getAttribute('width') || slot.style.width, 10) || 30;
     var img = el('img', 'logo'); img.alt = ''; img.width = size; img.height = size;
-    setLogo(img, src);
+    if (slot.id) img.id = slot.id;
+    var ersatt = function () { var p = prick(abbr, size); if (slot.id) p.id = slot.id; if (img.parentNode) img.parentNode.replaceChild(p, img); };
+    slot.parentNode.replaceChild(img, slot);
+    if (!src) { ersatt(); return; }
+    img.onerror = ersatt;
+    img.src = src;
+  }
+  function smallLogo(src, size, abbr) {
+    if (!src) return prick(abbr, size);
+    var img = el('img', 'logo'); img.alt = ''; img.width = size; img.height = size;
+    img.onerror = function () { if (img.parentNode) img.parentNode.replaceChild(prick(abbr, size), img); };
+    img.src = src;
     return img;
   }
   function bilderKlara() {
@@ -60,8 +78,8 @@
     $('#kort').setAttribute('aria-label', 'Matchkort ' + b.n + ' mot ' + h.n + ', ' + b.m + '–' + h.m);
     varumarke($('#k-mark'), G.sajt || 'ShiftIQ');
     $('#k-sub').textContent = formel === 'plus' ? 'Game Score+' : 'Game Score';
-    setLogo($('#k-bl'), b.logo);
-    setLogo($('#k-hl'), h.logo);
+    setLogo($('#k-bl'), b.logo, b.k);
+    setLogo($('#k-hl'), h.logo, h.k);
     $('#k-date').textContent = G.datumText;
     $('#k-bn').textContent = b.n; $('#k-bk').textContent = b.k;
     $('#k-hn').textContent = h.n; $('#k-hk').textContent = h.k;
@@ -86,7 +104,7 @@
       var info = el('div', 't');
       info.appendChild(el('div', 'n', s.p[1]));
       var sline = el('div', 's');
-      sline.appendChild(smallLogo(s.logo, 22));
+      sline.appendChild(smallLogo(s.logo, 22, s.k));
       sline.appendChild(document.createTextNode(s.k + ', ' + f2(s.p[vi])));
       info.appendChild(sline);
       t.appendChild(r); t.appendChild(info);
@@ -102,7 +120,7 @@
       var col = el('div', 'k-col');
       var head = el('div', 'k-head');
       var hn = el('div', 'n');
-      hn.appendChild(smallLogo(t.logo, 30));
+      hn.appendChild(smallLogo(t.logo, 30, t.k));
       hn.appendChild(document.createTextNode(t.n));
       head.appendChild(hn);
       var lost = G.avg !== 'Ordinarie' && !won ? 'Förlust efter ' + (G.avg === 'Straffar' ? 'straffar' : 'förl.') : 'Förlust';
@@ -136,7 +154,8 @@
     $('#k-explain').textContent = formel === 'plus'
       ? 'Game Score+ samlar en spelares match i ett tal: poäng, chansernas kvalitet (xG), tekningar, utvisningar och hur det gick när spelaren var på isen. Noll är en vanlig insats.'
       : 'Game Score samlar en spelares match i ett tal: poäng, skott, tekningar, utvisningar och hur det gick när spelaren var på isen. Noll är en vanlig insats.';
-    $('#k-src').textContent = formel === 'plus' ? 'Data: NHL. Formel: Game Score+.' : 'Data: NHL. Formel: Dom Luszczyszyn.';
+    $('#k-src').textContent = (formel === 'plus' ? 'Data: NHL. Formel: Game Score+.' : 'Data: NHL. Formel: Dom Luszczyszyn.') +
+      ' Oberoende fansida utan koppling till NHL eller lagen.';
     $('#k-sign').textContent = G.namn || '';
 
     var dl = $('#ladda');

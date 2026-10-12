@@ -42,7 +42,9 @@ Har du redan satt upp projektet? Ladda upp de nya filerna på samma sätt som i 
 | Inställning | Vad den gör |
 |---|---|
 | `sajtnamn` | Namnet i sidhuvudet och på matchkorten (`ShiftIQ`). |
-| `namn` | Ditt namn eller konto, till exempel på X. Visas längst ner på sidan och på matchkorten. |
+| `namn` | Ditt konto, till exempel `@shiftiq` på X. Visas längst ner på sidan och på matchkorten. Lämna tomt (`""`) för att inte visa något. |
+| `kontakt` | Länk dit man kan höra av sig, till exempel med frågor eller om något ska tas bort. Standard är projektets Issues-sida på GitHub. |
+| `visa_loggor` | `true` visar lagens loggor från NHL. `false` visar i stället en prick i lagets färg bredvid förkortningen. |
 | `dagar_med_bilder` | Hur många dagar bakåt det skapas nedladdningsbara bilder (standard 21). |
 
 ## Game Score+
@@ -82,7 +84,7 @@ Sidan visar också hur modellen hade tippat varje spelad match, räknat bara på
 
 ## Bra att veta
 
-- **Loggorna** hämtas direkt från NHL:s egen server. Lagens loggor tillhör respektive lag och NHL. Om en logga inte går att ladda visas bara lagets förkortning.
+- **Rättigheter:** ShiftIQ är en oberoende fansida utan vinstsyfte och utan koppling till NHL, lagen eller Dom Luszczyszyn. Det står på sidan och på matchkorten. Lagnamn och loggor tillhör respektive lag och NHL. Loggorna hämtas direkt från NHL:s server och kan stängas av med `visa_loggor`. Håll sidan fri från annonser och betalning, och ta bort det du blir ombedd att ta bort.
 - **Om en körning misslyckas** syns ett rött kryss under **Actions**. Klicka på körningen och se vilket steg som stoppade. NHL:s datatjänster är öppna men inte officiellt dokumenterade och kan ändras. Kopiera felmeddelandet och fråga, så går det att rätta.
 - **GitHub pausar schemat** i publika projekt efter 60 dagar utan aktivitet. Under säsongen sparas nya tabeller varje dag, och det räknas som aktivitet. Efter sommaruppehållet kan du behöva slå på det igen under **Actions** med **Enable workflow**.
 - **Köra på egen dator:**

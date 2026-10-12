@@ -80,6 +80,8 @@ header.site { background: var(--ink); color: #fff; z-index: 20; }
 
 /* ---------- loggor ---------- */
 img.logo { object-fit: contain; flex: none; vertical-align: middle; }
+.lagprick { display: inline-flex; align-items: center; justify-content: center; flex: none; vertical-align: middle; }
+.lagprick i { width: 58%; height: 58%; border-radius: 50%; background: var(--c); }
 .tt { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
 .tt .kort { display: none; }
 
@@ -190,6 +192,10 @@ table.rows { width: 100%; border-collapse: collapse; }
 .formula div + div { margin-top: 6px; }
 
 footer.foot { max-width: 1180px; margin: 0 auto; padding: 18px clamp(16px, 3.5vw, 40px) 36px; border-top: 1px solid var(--rule); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 20px; color: var(--mute); font-size: 15px; }
+.foot-txt { max-width: 48rem; }
+.foot-txt p { margin: 0 0 4px; }
+.foot-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.foot-meta a { color: var(--lys); font-weight: 600; }
 
 @media (max-width: 640px) {
   .hn { display: none; }
@@ -277,7 +283,7 @@ body.mobil #kort .k-date { flex-basis: 100%; text-align: left; }
 body.mobil #kort .k-hero { column-gap: 10px; margin-top: 18px; }
 body.mobil #kort .k-full { font-size: 13px; white-space: normal; }
 body.mobil #kort .k-id { gap: 8px; }
-body.mobil #kort .k-id .logo { width: 36px; height: 36px; }
+body.mobil #kort .k-id .logo, body.mobil #kort .k-id .lagprick { width: 36px !important; height: 36px !important; }
 body.mobil #kort .k-abbr { font-size: 34px; }
 body.mobil #kort .k-score { font-size: 64px; gap: 6px; }
 body.mobil #kort .k-score .dash { font-size: 40px; }
@@ -289,7 +295,7 @@ body.mobil #kort .k-star .n { font-size: 18px; }
 body.mobil #kort .k-star .s { font-size: 15px; }
 body.mobil #kort .k-cols { grid-template-columns: 1fr; row-gap: 26px; margin-top: 18px; }
 body.mobil #kort .k-head .n { font-size: 19px; }
-body.mobil #kort .k-head .n .logo { width: 26px; height: 26px; }
+body.mobil #kort .k-head .n .logo, body.mobil #kort .k-head .n .lagprick { width: 26px !important; height: 26px !important; }
 body.mobil #kort .pill { font-size: 14px; }
 body.mobil #kort .k-sum { font-size: 14px; }
 body.mobil #kort .k-row { grid-template-columns: 24px minmax(0, 1fr) 34% 46px; column-gap: 8px; height: 32px; }

@@ -8,17 +8,7 @@
   var PAGES = ['oversikt', 'vinstchans', 'matcher', 'spelare', 'lag', 'malvakter', 'om'];
   var GS_PAGES = { oversikt: 1, matcher: 1, spelare: 1, lag: 1, malvakter: 1 };
 
-  // Lagens färger: [huvudfärg, reservfärg om två lag har för lika färger]
-  var FARG = {
-    ANA: ['#F47A38', '#B9975B'], BOS: ['#FFB81C', '#000000'], BUF: ['#003087', '#FFB81C'], CGY: ['#C8102E', '#F1BE48'],
-    CAR: ['#CE1126', '#000000'], CHI: ['#CF0A2C', '#000000'], COL: ['#6F263D', '#236192'], CBJ: ['#002654', '#CE1126'],
-    DAL: ['#006847', '#8F8F8C'], DET: ['#CE1126', '#8D9093'], EDM: ['#041E42', '#FF4C00'], FLA: ['#C8102E', '#041E42'],
-    LAK: ['#111111', '#A2AAAD'], MIN: ['#154734', '#A6192E'], MTL: ['#AF1E2D', '#192168'], NSH: ['#FFB81C', '#041E42'],
-    NJD: ['#CE1126', '#000000'], NYI: ['#00539B', '#F47D30'], NYR: ['#0038A8', '#CE1126'], OTT: ['#C52032', '#000000'],
-    PHI: ['#F74902', '#000000'], PIT: ['#FCB514', '#000000'], SJS: ['#006D75', '#EA7200'], SEA: ['#001628', '#68A2B9'],
-    STL: ['#002F87', '#FCB514'], TBL: ['#002868', '#8D9093'], TOR: ['#00205B', '#8D9093'], UTA: ['#6CACE4', '#010101'],
-    VAN: ['#00205B', '#00843D'], VGK: ['#B4975A', '#333F42'], WSH: ['#041E42', '#C8102E'], WPG: ['#041E42', '#AC162C']
-  };
+  var FARG = window.LAGFARG || {};
 
   var D = null;
   var formel = 'plus';
@@ -57,14 +47,23 @@
     tr.appendChild(c);
     return c;
   }
+  function prick(abbr, size) {
+    var s = el('span', 'lagprick');
+    s.style.width = size + 'px'; s.style.height = size + 'px';
+    s.style.setProperty('--c', (FARG[abbr] || ['#9AA8B6'])[0]);
+    s.setAttribute('aria-hidden', 'true');
+    s.appendChild(el('i'));
+    return s;
+  }
   function logo(abbr, size) {
     var info = D && D.lagInfo && D.lagInfo[abbr];
+    if (!info || !info.logo) return prick(abbr, size);
     var img = el('img', 'logo');
     img.alt = '';
     img.width = size; img.height = size;
     img.decoding = 'async';
-    img.addEventListener('error', function () { img.style.visibility = 'hidden'; });
-    if (info && info.logo) img.src = info.logo; else img.style.visibility = 'hidden';
+    img.addEventListener('error', function () { if (img.parentNode) img.parentNode.replaceChild(prick(abbr, size), img); });
+    img.src = info.logo;
     return img;
   }
   function team(abbr, size, text) {
@@ -542,6 +541,9 @@
       $('#updated').textContent = 'Uppdaterad ' + D.uppdaterad;
       $('#foot-upd').textContent = 'Uppdaterad ' + D.uppdaterad + '.';
       $('#sign').textContent = D.namn ? D.namn : '';
+      if (D.kontakt) {
+        document.querySelectorAll('.kontakt-lank').forEach(function (k) { k.href = D.kontakt; k.hidden = false; });
+      }
       if (!D.plus) {
         formel = 'gs';
         var b = document.querySelector('[data-formel="plus"]');

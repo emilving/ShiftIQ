@@ -1,5 +1,7 @@
 {
   "sajtnamn": "ShiftIQ",
-  "namn": "Ditt namn",
+  "namn": "",
+  "kontakt": "https://github.com/emilving/ShiftIQ/issues",
+  "visa_loggor": true,
   "dagar_med_bilder": 21
 }

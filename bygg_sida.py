@@ -135,6 +135,10 @@ def build_data(csv_dir: Path, season: str, cfg: dict):
     ins = pd.concat([P[[c for c in cols if c in P]], GK[[c for c in cols if c in GK]] if not GK.empty else None], ignore_index=True)
     ins["Motst kort"] = ins["Motståndare"].map(abbr)
 
+    if not cfg.get("visa_loggor", True):
+        for v in lag_info.values():
+            v["logo"] = ""
+
     pre = {}
     for _, r in PR.iterrows():
         pre[int(r["Match-id"])] = {"b": num(r["Chans borta"], 3), "h": num(r["Chans hemma"], 3)}
@@ -214,7 +218,7 @@ def build_data(csv_dir: Path, season: str, cfg: dict):
         "sasong": f"{season[:4]}/{season[6:]}", "uppdaterad": now_text(),
         "sajt": cfg.get("sajtnamn", "ShiftIQ"), "lagInfo": lag_info, "kommande": kommande, "traff": traff,
         "forsta": str(M["Datum"].min()), "sista": str(M["Datum"].max()),
-        "plus": bool(has_plus), "namn": cfg.get("namn", ""), "excel": None,
+        "plus": bool(has_plus), "namn": cfg.get("namn", ""), "kontakt": cfg.get("kontakt", ""), "excel": None,
         "spelare": spelare, "mv": mv, "lag": lag, "matcher": matcher,
         "topp": {"gs": {"bast": top("Game Score", False), "samst": top("Game Score", True)},
                  "pl": {"bast": top("Game Score+", False), "samst": top("Game Score+", True)}},
