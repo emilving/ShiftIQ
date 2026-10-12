@@ -1,33 +1,87 @@
-/* NHL Game Score – startsidan. Läser data/sasong.json som byggs av bygg_sida.py. */
+/* ShiftIQ – webbsidan. Läser data/sasong.json som byggs av bygg_sida.py. */
 (function () {
   'use strict';
   var MAN = ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli', 'augusti', 'september', 'oktober', 'november', 'december'];
   var MAN_K = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
   var DAG = ['söndag', 'måndag', 'tisdag', 'onsdag', 'torsdag', 'fredag', 'lördag'];
   var MIN = 3;
+  var PAGES = ['oversikt', 'vinstchans', 'matcher', 'spelare', 'lag', 'malvakter', 'om'];
+  var GS_PAGES = { oversikt: 1, matcher: 1, spelare: 1, lag: 1, malvakter: 1 };
+
+  // Lagens färger: [huvudfärg, reservfärg om två lag har för lika färger]
+  var FARG = {
+    ANA: ['#F47A38', '#B9975B'], BOS: ['#FFB81C', '#000000'], BUF: ['#003087', '#FFB81C'], CGY: ['#C8102E', '#F1BE48'],
+    CAR: ['#CE1126', '#000000'], CHI: ['#CF0A2C', '#000000'], COL: ['#6F263D', '#236192'], CBJ: ['#002654', '#CE1126'],
+    DAL: ['#006847', '#8F8F8C'], DET: ['#CE1126', '#8D9093'], EDM: ['#041E42', '#FF4C00'], FLA: ['#C8102E', '#041E42'],
+    LAK: ['#111111', '#A2AAAD'], MIN: ['#154734', '#A6192E'], MTL: ['#AF1E2D', '#192168'], NSH: ['#FFB81C', '#041E42'],
+    NJD: ['#CE1126', '#000000'], NYI: ['#00539B', '#F47D30'], NYR: ['#0038A8', '#CE1126'], OTT: ['#C52032', '#000000'],
+    PHI: ['#F74902', '#000000'], PIT: ['#FCB514', '#000000'], SJS: ['#006D75', '#EA7200'], SEA: ['#001628', '#68A2B9'],
+    STL: ['#002F87', '#FCB514'], TBL: ['#002868', '#8D9093'], TOR: ['#00205B', '#8D9093'], UTA: ['#6CACE4', '#010101'],
+    VAN: ['#00205B', '#00843D'], VGK: ['#B4975A', '#333F42'], WSH: ['#041E42', '#C8102E'], WPG: ['#041E42', '#AC162C']
+  };
 
   var D = null;
   var formel = 'plus';
+  var page = 'oversikt';
   var state = { lag: '', pos: '', min: true, q: '', sort: 'avg' };
 
+  // ---------- små hjälpare ----------
   function $(s) { return document.querySelector(s); }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function f2(v) { return v == null || isNaN(v) ? '–' : (v < 0 ? '−' : '') + Math.abs(v).toFixed(2); }
+  function f1(v) { return v == null || isNaN(v) ? '–' : (v < 0 ? '−' : '') + Math.abs(v).toFixed(1); }
+  function pct(v) { return Math.round(v * 100) + ' %'; }
   function tier(v) { return v < 0 ? 'var(--svag)' : v < 1 ? 'var(--godk)' : v < 2 ? 'var(--bra)' : 'var(--lys)'; }
-  function datum(s, kort) {
-    var d = new Date(s + 'T12:00:00');
-    return kort ? d.getDate() + ' ' + MAN_K[d.getMonth()] : d.getDate() + ' ' + MAN[d.getMonth()];
+  function datum(s, kort) { var d = new Date(s + 'T12:00:00'); return d.getDate() + ' ' + (kort ? MAN_K : MAN)[d.getMonth()]; }
+  function dagRubrik(s) { var d = new Date(s + 'T12:00:00'); var t = DAG[d.getDay()]; return t.charAt(0).toUpperCase() + t.slice(1) + ' ' + d.getDate() + ' ' + MAN[d.getMonth()]; }
+  var TID = (function () {
+    try { return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Stockholm', weekday: 'short', hour: '2-digit', minute: '2-digit' }); } catch (e) { return null; }
+  })();
+  function starttid(iso) {
+    if (!iso || !TID) return '';
+    var d = new Date(iso);
+    return isNaN(d) ? '' : TID.format(d).replace(':', '.');
   }
-  function dagRubrik(s) {
-    var d = new Date(s + 'T12:00:00');
-    var t = DAG[d.getDay()];
-    return t.charAt(0).toUpperCase() + t.slice(1) + ' ' + d.getDate() + ' ' + MAN[d.getMonth()];
+  function varumarke(node, namn) {
+    node.textContent = '';
+    if (/IQ$/.test(namn) && namn.length > 2) {
+      node.appendChild(document.createTextNode(namn.slice(0, -2)));
+      node.appendChild(el('span', 'iq', 'IQ'));
+    } else node.textContent = namn;
   }
   function avg(p) { return formel === 'plus' ? p.pl : p.gs; }
   function sum(p) { return formel === 'plus' ? p.plS : p.gsS; }
-  function td(tr, text, cls) { var c = el('td', cls, text); tr.appendChild(c); return c; }
-  function barCell(tr, v, lo, hi, color) {
-    var c = el('td', 'barc');
+  function td(tr, content, cls) {
+    var c = el('td', cls);
+    if (content instanceof Node) c.appendChild(content); else c.textContent = content;
+    tr.appendChild(c);
+    return c;
+  }
+  function logo(abbr, size) {
+    var info = D && D.lagInfo && D.lagInfo[abbr];
+    var img = el('img', 'logo');
+    img.alt = '';
+    img.width = size; img.height = size;
+    img.decoding = 'async';
+    img.addEventListener('error', function () { img.style.visibility = 'hidden'; });
+    if (info && info.logo) img.src = info.logo; else img.style.visibility = 'hidden';
+    return img;
+  }
+  function team(abbr, size, text) {
+    var s = el('span', 'tt');
+    s.appendChild(logo(abbr, size || 22));
+    s.appendChild(el('span', null, text || abbr));
+    return s;
+  }
+  function lagNamn(abbr, size, full) {
+    var s = el('span', 'tt');
+    s.appendChild(logo(abbr, size));
+    s.appendChild(el('span', 'full', full));
+    s.appendChild(el('span', 'kort', abbr));
+    return s;
+  }
+  function barCell(tr, v, lo, hi, color, extra) {
+    var c = el('td', 'barc' + (extra ? ' ' + extra : ''));
     var box = el('div', 'bar');
     var span = hi - lo || 1;
     var x = function (t) { return (t - lo) / span * 100; };
@@ -45,27 +99,64 @@
     vals.forEach(function (v) { if (v < lo) lo = v; if (v > hi) hi = v; });
     return [lo, hi];
   }
-
-  // ---------- flikar ----------
-  var current = 'spelare';
-  function show(id, scroll) {
-    if (!document.getElementById(id)) return;
-    current = id;
-    document.querySelectorAll('.tab').forEach(function (t) { t.setAttribute('aria-selected', String(t.dataset.tab === id)); });
-    document.querySelectorAll('.panel').forEach(function (p) { p.hidden = p.id !== id; });
-    if (history.replaceState) history.replaceState(null, '', '#' + id);
-    drawPanel();
-    if (scroll) $('.tabs').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  function emptyRow(tb, cols, text) {
+    var tr = el('tr'); var c = td(tr, text, 'empty'); c.colSpan = cols; tb.appendChild(tr);
   }
-  document.querySelectorAll('.tab').forEach(function (t) { t.addEventListener('click', function () { show(t.dataset.tab); }); });
+
+  // ---------- lagfärger: två lag ska aldrig få nästan samma färg ----------
+  function lab(hex) {
+    var h = hex.replace('#', '');
+    var rgb = [0, 2, 4].map(function (i) {
+      var c = parseInt(h.substr(i, 2), 16) / 255;
+      return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    var X = (rgb[0] * 0.4124 + rgb[1] * 0.3576 + rgb[2] * 0.1805) / 0.95047;
+    var Y = (rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722);
+    var Z = (rgb[0] * 0.0193 + rgb[1] * 0.1192 + rgb[2] * 0.9505) / 1.08883;
+    var f = function (t) { return t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116; };
+    return [116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))];
+  }
+  function dE(a, b) { var p = lab(a), q = lab(b); return Math.sqrt(Math.pow(p[0] - q[0], 2) + Math.pow(p[1] - q[1], 2) + Math.pow(p[2] - q[2], 2)); }
+  function matchFarger(borta, hemma) {
+    var b = FARG[borta] || ['#86A7D2', '#4E5D6C'];
+    var h = FARG[hemma] || ['#1B4A8A', '#4E5D6C'];
+    var cb = b[0];
+    if (dE(cb, h[0]) < 28) { cb = b[1]; if (dE(cb, h[0]) < 28) cb = '#9AA8B6'; }
+    return [cb, h[0]];
+  }
+
+  // ---------- navigering ----------
+  function show(p) {
+    if (PAGES.indexOf(p) < 0) p = 'oversikt';
+    page = p;
+    PAGES.forEach(function (x) { document.getElementById(x).hidden = x !== p; });
+    document.querySelectorAll('.nav a, .tabbar a').forEach(function (a) {
+      if (a.dataset.page === p || a.dataset.also === p) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+    var om = $('.site-om');
+    if (p === 'om') om.setAttribute('aria-current', 'page'); else om.removeAttribute('aria-current');
+    var sb = $('#subbar');
+    if (GS_PAGES[p]) {
+      var head = document.querySelector('#' + p + ' .page-head');
+      head.parentNode.insertBefore(sb, head.nextSibling);
+      sb.hidden = false;
+    } else {
+      sb.hidden = true;
+    }
+    var act = document.querySelector('.nav a[aria-current]');
+    if (act) { var nav = $('.nav-in'); nav.scrollLeft = Math.max(0, act.offsetLeft - nav.clientWidth / 2 + act.offsetWidth / 2); }
+    draw();
+    window.scrollTo(0, 0);
+  }
+  window.addEventListener('hashchange', function () { show(location.hash.slice(1)); });
 
   // ---------- formel ----------
   document.querySelectorAll('[data-formel]').forEach(function (b) {
     b.addEventListener('click', function () {
       if (b.disabled) return;
       formel = b.dataset.formel;
-      document.querySelectorAll('[data-formel]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
-      drawAll();
+      document.querySelectorAll('[data-formel]').forEach(function (x) { x.setAttribute('aria-pressed', String(x.dataset.formel === formel)); });
+      draw();
     });
   });
 
@@ -83,23 +174,123 @@
   document.querySelectorAll('#t-spelare th button').forEach(function (b) {
     b.addEventListener('click', function () { state.sort = b.dataset.sort; drawPlayers(); });
   });
+  function visaLag(lag) {
+    state.lag = lag;
+    $('#f-lag').value = lag;
+    if (location.hash === '#spelare') show('spelare'); else location.hash = 'spelare';
+  }
 
-  // ---------- huvud ----------
-  function drawHead() {
-    $('#title').textContent = 'NHL ' + D.sasong;
-    $('#period').textContent = datum(D.forsta) + ' – ' + datum(D.sista);
-    $('#updated').textContent = 'Uppdaterad ' + D.uppdaterad;
+  // ---------- byggstenar ----------
+  function matchupKort(g, medDetaljer) {
+    var a = el('article', 'mu');
+    var top = el('div', 'mu-top');
+    top.appendChild(el('span', null, starttid(g.start)));
+    var trotta = [g.b, g.h].filter(function (t) { return t.trott; }).map(function (t) { return t.k + ' spelade igår'; });
+    if (trotta.length) top.appendChild(el('span', 'mu-flag', trotta.join(', ')));
+    a.appendChild(top);
+
+    var teams = el('div', 'mu-teams');
+    [['b', g.b, g.h], ['h', g.h, g.b]].forEach(function (x) {
+      var t = x[1], o = x[2];
+      var box = el('div', 'mu-team ' + x[0]);
+      var id = el('div', 'mu-id');
+      id.appendChild(logo(t.k, 40));
+      id.appendChild(el('span', 'mu-ab', t.k));
+      box.appendChild(id);
+      box.appendChild(el('div', 'mu-fn', t.n));
+      box.appendChild(el('div', 'mu-pct' + (t.p >= o.p ? ' fav' : ''), pct(t.p)));
+      teams.appendChild(box);
+    });
+    a.appendChild(teams);
+
+    var farg = matchFarger(g.b.k, g.h.k);
+    var bar = el('div', 'pbar');
+    bar.setAttribute('role', 'img');
+    bar.setAttribute('aria-label', g.b.k + ' ' + pct(g.b.p) + ', ' + g.h.k + ' ' + pct(g.h.p));
+    var i1 = el('i'); i1.style.flex = g.b.p + ' 1 0'; i1.style.background = farg[0];
+    var i2 = el('i'); i2.style.flex = g.h.p + ' 1 0'; i2.style.background = farg[1];
+    bar.appendChild(i1); bar.appendChild(i2);
+    a.appendChild(bar);
+
+    var foot = el('div', 'mu-foot');
+    foot.appendChild(el('span', null, 'Väntade mål ' + f1(g.b.xg) + '–' + f1(g.h.xg)));
+    foot.appendChild(el('span', null, 'Hemma: ' + g.h.k));
+    a.appendChild(foot);
+
+    if (medDetaljer) {
+      var det = el('details');
+      det.appendChild(el('summary', null, 'Jämför lagen'));
+      var tab = el('div', 'cmp');
+      var rad = function (vb, label, vh, bb, hb, extra) {
+        var r = el('div', 'cmp-row' + (extra ? ' ' + extra : ''));
+        var c1 = el('div', 'v' + (bb ? ' best' : '')); if (vb instanceof Node) c1.appendChild(vb); else c1.textContent = vb;
+        var c3 = el('div', 'v h' + (hb ? ' best' : '')); if (vh instanceof Node) c3.appendChild(vh); else c3.textContent = vh;
+        r.appendChild(c1); r.appendChild(el('div', 'l', label)); r.appendChild(c3);
+        tab.appendChild(r);
+      };
+      var rader = [
+        ['Matcher', 'gp', 0, null],
+        ['Gjorda mål per match', 'mal', 2, 'hi'],
+        ['Insläppta per match', 'insl', 2, 'lo'],
+        ['Chanser för (xG)', 'xgf', 2, 'hi'],
+        ['Chanser emot (xG)', 'xga', 2, 'lo'],
+        ['Målvaktsspel (GSAx)', 'gsax', 2, 'hi']
+      ];
+      rader.forEach(function (r) {
+        var vb = g.b[r[1]], vh = g.h[r[1]];
+        if (vb == null && vh == null) return;
+        var bb = !!r[3] && vb != null && vh != null && vb !== vh && ((r[3] === 'hi') === (vb > vh));
+        var hb = !!r[3] && vb != null && vh != null && vb !== vh && !bb;
+        var fmt = function (v) { return v == null ? '–' : r[2] ? (v < 0 ? '−' : '') + Math.abs(v).toFixed(r[2]) : String(v); };
+        rad(fmt(vb), r[0], fmt(vh), bb, hb);
+      });
+      rad(form(g.b.form), 'Form, senaste 5 matcherna', form(g.h.form), false, false, 'form-row');
+      det.appendChild(tab);
+      a.appendChild(det);
+    }
+    return a;
+  }
+  function form(s) {
+    var box = el('span', 'form');
+    (s || '').split(' ').filter(Boolean).forEach(function (r) {
+      var t = el('span', r, r === 'FÖ' ? 'Ö' : r);
+      t.title = r === 'V' ? 'Vinst' : r === 'F' ? 'Förlust' : 'Förlust efter förlängning eller straffar';
+      box.appendChild(t);
+    });
+    if (!s) box.textContent = '–';
+    return box;
+  }
+  function matchKort(g) {
+    var a = el('a', 'game');
+    a.href = 'kort.html?id=' + g.id + (formel === 'gs' ? '&formel=original' : '');
+    var row = el('div', 'row');
+    var bortaVann = g.bm > g.hm;
+    var tb = el('span', 'tm' + (bortaVann ? '' : ' lose')); tb.appendChild(logo(g.bk, 30)); tb.appendChild(el('span', null, g.bk));
+    var th = el('span', 'tm' + (bortaVann ? ' lose' : '')); th.appendChild(el('span', null, g.hk)); th.appendChild(logo(g.hk, 30));
+    var sc = el('span', 'sc');
+    sc.appendChild(el('span', bortaVann ? null : 'lose', String(g.bm)));
+    sc.appendChild(document.createTextNode('–'));
+    sc.appendChild(el('span', bortaVann ? 'lose' : null, String(g.hm)));
+    row.appendChild(tb); row.appendChild(sc); row.appendChild(th);
+    sc.style.margin = '0 auto';
+    a.appendChild(row);
+    var star = g.stj && g.stj[formel === 'plus' ? 'pl' : 'gs'];
+    var bits = [];
+    if (g.avg !== 'Ordinarie') bits.push(g.avg === 'Straffar' ? 'Avgjord på straffar' : 'Avgjord i förlängning');
+    if (star) bits.push('Matchens stjärna: ' + star.n + ', ' + star.k + ', ' + f2(star.v));
+    if (bits.length) a.appendChild(el('div', 'extra', bits.join('. ')));
+    if (g.pre) {
+      var fav = g.pre.h >= g.pre.b ? [g.hk, g.pre.h] : [g.bk, g.pre.b];
+      var vann = (g.pre.h >= g.pre.b) === (g.hm > g.bm);
+      a.appendChild(el('div', 'extra', 'Före matchen: ' + fav[0] + ' favorit med ' + pct(fav[1]) + (vann ? ', och vann.' : ', men förlorade.')));
+    }
+    a.appendChild(el('div', 'go', 'Visa matchkortet'));
+    return a;
+  }
+  function stjarnor(box) {
+    box.textContent = '';
     var skaters = D.spelare.filter(function (p) { return p.gp >= MIN && avg(p) != null; }).sort(function (a, b) { return avg(b) - avg(a); });
     var goalie = D.mv.filter(function (p) { return p.gp >= MIN && avg(p) != null; }).sort(function (a, b) { return avg(b) - avg(a); })[0];
-    var best = skaters[0];
-    var w = D.vinnare[formel === 'plus' ? 'pl' : 'gs'];
-    var take = $('#take');
-    take.textContent = best
-      ? best.n + ' (' + best.lag + ') har högst snitt i ligan, ' + f2(avg(best)) + ' per match. Laget med högst sammanlagd Game Score har vunnit ' + w[0] + ' av ' + w[1] + ' matcher.'
-      : '';
-
-    var stars = $('#stars');
-    stars.textContent = '';
     function tile(rank, p, label) {
       var t = el('div', 'star');
       var r = el('div', rank === 'MV' ? 'rank mv' : 'rank', rank);
@@ -107,29 +298,124 @@
       var info = el('div'); info.style.minWidth = '0';
       if (label) info.appendChild(el('div', 'lbl', label));
       info.appendChild(el('div', 'nm', p.n));
-      info.appendChild(el('div', 'sub', p.k + ', snitt ' + f2(avg(p)) + ', ' + p.gp + ' matcher'));
+      var sub = el('div', 'sub');
+      sub.appendChild(team(p.k, 18));
+      sub.appendChild(el('span', null, 'snitt ' + f2(avg(p)) + ', ' + p.gp + ' matcher'));
+      info.appendChild(sub);
       t.appendChild(r); t.appendChild(info);
       return t;
     }
-    skaters.slice(0, 3).forEach(function (p, i) { stars.appendChild(tile(String(i + 1), p, '')); });
-    if (goalie) stars.appendChild(tile('MV', goalie, 'Bästa målvakt'));
-
-    $('#f-matcher').textContent = String(D.matcher.length);
-    $('#f-spelare').textContent = String(D.spelare.length + D.mv.length);
-    $('#f-vinnare').textContent = w[1] ? Math.round(w[0] / w[1] * 100) + ' %' : '–';
-    $('#sign').textContent = D.namn ? 'Design och statistik: ' + D.namn : '';
-    if (D.excel) {
-      var dl = $('#dl');
-      dl.textContent = '';
-      dl.appendChild(document.createTextNode('All statistik finns också som '));
-      var a = el('a', null, 'Excel-fil');
-      a.href = D.excel;
-      dl.appendChild(a);
-      dl.appendChild(document.createTextNode(', med en flik per tabell.'));
-    }
+    skaters.slice(0, 3).forEach(function (p, i) { box.appendChild(tile(String(i + 1), p, '')); });
+    if (goalie) box.appendChild(tile('MV', goalie, 'Bästa målvakt'));
+    return skaters[0];
+  }
+  function tabellOrdning() {
+    return D.lag.slice().sort(function (a, b) {
+      return (b.pts - a.pts) || ((b.pts / b.gp) - (a.pts / a.gp)) || ((b.gf - b.ga) - (a.gf - a.ga));
+    });
+  }
+  function grupperaPerDag(list, key) {
+    var by = {};
+    list.forEach(function (g) { (by[g[key]] = by[g[key]] || []).push(g); });
+    return by;
   }
 
-  // ---------- spelare ----------
+  // ---------- Översikt ----------
+  function drawOversikt() {
+    $('#o-title').textContent = 'NHL ' + D.sasong;
+    $('#o-period').textContent = datum(D.forsta) + ' – ' + datum(D.sista) + ', ' + D.matcher.length + ' matcher spelade';
+    var best = stjarnor($('#o-stars'));
+    var w = D.vinnare[formel === 'plus' ? 'pl' : 'gs'];
+    $('#o-take').textContent = best
+      ? best.n + ' (' + best.lag + ') har högst snitt i ligan, ' + f2(avg(best)) + ' per match. Laget med högst sammanlagd Game Score har vunnit ' + w[0] + ' av ' + w[1] + ' matcher.'
+      : '';
+
+    var box = $('#o-matchups');
+    box.textContent = '';
+    if (D.kommande.length) {
+      var forsta = D.kommande[0].d;
+      var dag = D.kommande.filter(function (g) { return g.d === forsta; });
+      $('#o-next-day').textContent = dagRubrik(forsta) + ', ' + dag.length + (dag.length === 1 ? ' match' : ' matcher') + '. Procenten är chansen att vinna.';
+      dag.slice(0, 6).forEach(function (g) { box.appendChild(matchupKort(g, false)); });
+    } else {
+      $('#o-next-day').textContent = '';
+      box.appendChild(el('div', 'empty', 'Inga matcher inplanerade de närmaste dagarna.'));
+    }
+
+    var senast = D.matcher.length ? D.matcher[D.matcher.length - 1].d : null;
+    var games = $('#o-games');
+    games.textContent = '';
+    if (senast) {
+      var lista = D.matcher.filter(function (g) { return g.d === senast; });
+      $('#o-last-day').textContent = dagRubrik(senast) + '.';
+      lista.forEach(function (g) { games.appendChild(matchKort(g)); });
+    }
+
+    var tb = $('#t-topp tbody');
+    tb.textContent = '';
+    tabellOrdning().slice(0, 5).forEach(function (t, i) {
+      var tr = el('tr', 'click'); tr.tabIndex = 0;
+      td(tr, String(i + 1), 'rk');
+      td(tr, team(t.k, 26, t.lag), 'nm');
+      td(tr, t.w + '–' + t.l + '–' + t.otl, 'n m hn');
+      td(tr, t.pts + ' p', 'n val');
+      tr.addEventListener('click', function () { visaLag(t.lag); });
+      tr.addEventListener('keydown', function (e) { if (e.key === 'Enter') visaLag(t.lag); });
+      tb.appendChild(tr);
+    });
+  }
+
+  // ---------- Vinstchans ----------
+  function drawVinstchans() {
+    var box = $('#v-days');
+    box.textContent = '';
+    if (!D.kommande.length) {
+      box.appendChild(el('div', 'empty', 'Inga matcher inplanerade de närmaste dagarna.'));
+    } else {
+      var by = grupperaPerDag(D.kommande, 'd');
+      Object.keys(by).sort().forEach(function (d) {
+        box.appendChild(el('h2', 'day-h', dagRubrik(d)));
+        var grid = el('div', 'matchups');
+        by[d].forEach(function (g) { grid.appendChild(matchupKort(g, true)); });
+        box.appendChild(grid);
+      });
+    }
+    var t = D.traff || { n: 0, k: 0, grupper: [] };
+    var facts = $('#v-facts');
+    facts.textContent = '';
+    function fact(v, l) { var f = el('div', 'fact'); f.appendChild(el('div', 'v', v)); f.appendChild(el('div', 'l', l)); facts.appendChild(f); }
+    if (t.n) {
+      fact(pct(t.k / t.n), 'av matcherna vann favoriten');
+      fact(String(t.n), 'matcher har tippats');
+    } else {
+      fact('–', 'Träffsäkerheten visas när lagen spelat några matcher.');
+    }
+    var tb = $('#t-kalib tbody');
+    tb.textContent = '';
+    t.grupper.forEach(function (g) {
+      var tr = el('tr');
+      td(tr, g.namn);
+      td(tr, String(g.n), 'n');
+      td(tr, g.n ? pct(g.k / g.n) + ' (' + g.k + ')' : '–', 'n val');
+      td(tr, g.snitt != null ? pct(g.snitt) : '–', 'n m hn');
+      tb.appendChild(tr);
+    });
+  }
+
+  // ---------- Matcher ----------
+  function drawMatcher() {
+    var box = $('#m-days');
+    box.textContent = '';
+    var by = grupperaPerDag(D.matcher, 'd');
+    Object.keys(by).sort().reverse().forEach(function (d) {
+      box.appendChild(el('h2', 'day-h', dagRubrik(d)));
+      var grid = el('div', 'games');
+      by[d].forEach(function (g) { grid.appendChild(matchKort(g)); });
+      box.appendChild(grid);
+    });
+  }
+
+  // ---------- Spelare ----------
   function drawPlayers() {
     var list = D.spelare.filter(function (p) {
       return (!state.lag || p.lag === state.lag) && (!state.pos || p.pos === state.pos) &&
@@ -148,7 +434,7 @@
       var tr = el('tr');
       td(tr, String(i + 1), 'rk');
       td(tr, p.n, 'nm');
-      td(tr, p.k, 'm hn');
+      td(tr, team(p.k, 22), 'm hn');
       td(tr, p.pos, 'm hn');
       td(tr, String(p.gp), 'n hn');
       barCell(tr, avg(p), dom[0], dom[1], tier(avg(p)));
@@ -157,23 +443,36 @@
       td(tr, String(p.p), 'n hn');
       tb.appendChild(tr);
     });
-    if (!list.length) { var tr = el('tr'); var c = td(tr, 'Inga spelare matchar filtret.', 'empty'); c.colSpan = 9; tb.appendChild(tr); }
+    if (!list.length) emptyRow(tb, 9, 'Inga spelare matchar filtret.');
     $('#c-spelare').textContent = list.length ? list.length + ' spelare' : '';
+
+    var src = D.topp[formel === 'plus' ? 'pl' : 'gs'];
+    var vals = src.bast.concat(src.samst).map(function (r) { return r.v; });
+    var dom2 = domain(vals);
+    [['#t-bast', src.bast], ['#t-samst', src.samst]].forEach(function (x) {
+      var body = $(x[0] + ' tbody');
+      body.textContent = '';
+      x[1].slice(0, 10).forEach(function (r, i) {
+        var tr = el('tr', 'click');
+        td(tr, String(i + 1), 'rk');
+        td(tr, r.n, 'nm');
+        td(tr, team(r.k, 20, r.k + ' mot ' + r.mot + ', ' + datum(r.d, true)), 'm hn');
+        barCell(tr, r.v, dom2[0], dom2[1], tier(r.v));
+        td(tr, f2(r.v), 'n val');
+        tr.addEventListener('click', function () { location.href = 'kort.html?id=' + r.id + (formel === 'gs' ? '&formel=original' : ''); });
+        body.appendChild(tr);
+      });
+    });
   }
 
-  // ---------- lag ----------
-  function pickTeam(lag) {
-    state.lag = lag;
-    $('#f-lag').value = lag;
-    show('spelare', true);
-  }
+  // ---------- Tabell ----------
   function drawTeams() {
     var best = {};
     D.spelare.forEach(function (p) {
       if (p.gp < MIN || avg(p) == null) return;
       if (!best[p.lag] || avg(p) > avg(best[p.lag])) best[p.lag] = p;
     });
-    var list = D.lag.slice().sort(function (a, b) { return (b.pts - a.pts) || ((b.pts / b.gp) - (a.pts / a.gp)) || ((b.gf - b.ga) - (a.gf - a.ga)); });
+    var list = tabellOrdning();
     var dom = domain(list.map(avg));
     var tb = $('#t-lag tbody');
     tb.textContent = '';
@@ -181,25 +480,25 @@
       var tr = el('tr', 'click');
       tr.tabIndex = 0;
       td(tr, String(i + 1), 'rk');
-      td(tr, t.lag, 'nm');
-      td(tr, String(t.gp), 'n');
+      td(tr, lagNamn(t.k, 26, t.lag), 'nm');
+      td(tr, String(t.gp), 'n hn');
       td(tr, String(t.w), 'n');
       td(tr, String(t.l), 'n hn');
       td(tr, String(t.otl), 'n hn');
       td(tr, String(t.pts), 'n val');
       td(tr, t.gf + '–' + t.ga, 'n hn');
-      barCell(tr, avg(t), dom[0], dom[1], avg(t) >= 0 ? 'var(--bra)' : 'var(--svag)');
+      barCell(tr, avg(t), dom[0], dom[1], avg(t) >= 0 ? 'var(--bra)' : 'var(--svag)', 'hn');
       td(tr, f2(avg(t)), 'n val');
       td(tr, best[t.lag] ? best[t.lag].n : '', 'm hn');
-      tr.addEventListener('click', function () { pickTeam(t.lag); });
-      tr.addEventListener('keydown', function (e) { if (e.key === 'Enter') pickTeam(t.lag); });
+      tr.addEventListener('click', function () { visaLag(t.lag); });
+      tr.addEventListener('keydown', function (e) { if (e.key === 'Enter') visaLag(t.lag); });
       tb.appendChild(tr);
     });
   }
 
-  // ---------- målvakter ----------
+  // ---------- Målvakter ----------
   function drawGoalies() {
-    $('#n-mv').textContent = formel === 'plus'
+    $('#mv-lead').textContent = formel === 'plus'
       ? 'Game Score+ för målvakter bygger på räddade mål över förväntan (GSAx). Noll är en normal insats.'
       : 'Originalformeln ger plus för varje räddning och minus för varje insläppt mål.';
     var list = D.mv.filter(function (p) { return avg(p) != null; }).sort(function (a, b) { return (avg(b) - avg(a)) || (b.gp - a.gp); });
@@ -210,7 +509,7 @@
       var tr = el('tr');
       td(tr, String(i + 1), 'rk');
       td(tr, p.n, 'nm');
-      td(tr, p.k, 'm hn');
+      td(tr, team(p.k, 22), 'm hn');
       td(tr, String(p.gp), 'n');
       barCell(tr, avg(p), dom[0], dom[1], tier(avg(p)));
       td(tr, f2(avg(p)), 'n val');
@@ -220,89 +519,50 @@
     });
   }
 
-  // ---------- matcher ----------
-  function drawGames() {
-    var box = $('#games');
-    box.textContent = '';
-    var byDay = {};
-    D.matcher.forEach(function (g) { (byDay[g.d] = byDay[g.d] || []).push(g); });
-    Object.keys(byDay).sort().reverse().forEach(function (day) {
-      var sec = el('div', 'day');
-      sec.appendChild(el('h3', null, dagRubrik(day)));
-      var grid = el('div', 'games');
-      byDay[day].forEach(function (g) {
-        var a = el('a', 'game');
-        a.href = 'kort.html?id=' + g.id + (formel === 'gs' ? '&formel=original' : '');
-        var sc = el('div', 'score');
-        var awayWin = g.bm > g.hm;
-        var s1 = el('span', awayWin ? null : 'lose', g.bk + ' ' + g.bm);
-        var s2 = el('span', null, ' – ');
-        var s3 = el('span', awayWin ? 'lose' : null, g.hm + ' ' + g.hk);
-        sc.appendChild(s1); sc.appendChild(s2); sc.appendChild(s3);
-        a.appendChild(sc);
-        a.appendChild(el('span', 'go', 'Matchkort'));
-        var star = g.stj && g.stj[formel === 'plus' ? 'pl' : 'gs'];
-        var extra = (g.avg !== 'Ordinarie' ? g.avg + '. ' : '') + (star ? 'Matchens stjärna: ' + star.n + ', ' + star.k + ', ' + f2(star.v) : '');
-        a.appendChild(el('div', 'extra', extra));
-        grid.appendChild(a);
-      });
-      sec.appendChild(grid);
-      box.appendChild(sec);
-    });
-  }
-
-  // ---------- bästa och sämsta ----------
-  function drawTop() {
-    var src = D.topp[formel === 'plus' ? 'pl' : 'gs'];
-    [['#t-bast', src.bast], ['#t-samst', src.samst]].forEach(function (x) {
-      var tb = $(x[0] + ' tbody');
-      tb.textContent = '';
-      var list = x[1];
-      var vals = src.bast.concat(src.samst).map(function (r) { return r.v; });
-      var dom = domain(vals);
-      list.forEach(function (r, i) {
-        var tr = el('tr', 'click');
-        td(tr, String(i + 1), 'rk');
-        td(tr, r.n, 'nm');
-        td(tr, r.k + ' mot ' + r.mot + ', ' + datum(r.d, true), 'm hn');
-        barCell(tr, r.v, dom[0], dom[1], tier(r.v));
-        td(tr, f2(r.v), 'n val');
-        tr.addEventListener('click', function () { location.href = 'kort.html?id=' + r.id + (formel === 'gs' ? '&formel=original' : ''); });
-        tb.appendChild(tr);
-      });
-    });
-  }
-
-  function drawPanel() {
+  function draw() {
     if (!D) return;
-    if (current === 'spelare') drawPlayers();
-    else if (current === 'lag') drawTeams();
-    else if (current === 'malvakter') drawGoalies();
-    else if (current === 'matcher') drawGames();
-    else if (current === 'topp') drawTop();
+    if (page === 'oversikt') drawOversikt();
+    else if (page === 'vinstchans') drawVinstchans();
+    else if (page === 'matcher') drawMatcher();
+    else if (page === 'spelare') drawPlayers();
+    else if (page === 'lag') drawTeams();
+    else if (page === 'malvakter') drawGoalies();
   }
-  function drawAll() { drawHead(); drawPanel(); }
 
   fetch('data/sasong.json', { cache: 'no-store' })
     .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(function (data) {
       D = data;
+      D.kommande = D.kommande || [];
+      D.lagInfo = D.lagInfo || {};
+      if (D.sajt) {
+        varumarke($('#brand-name'), D.sajt);
+        document.title = D.sajt + ' – NHL-statistik';
+      }
+      $('#updated').textContent = 'Uppdaterad ' + D.uppdaterad;
+      $('#foot-upd').textContent = 'Uppdaterad ' + D.uppdaterad + '.';
+      $('#sign').textContent = D.namn ? D.namn : '';
       if (!D.plus) {
         formel = 'gs';
         var b = document.querySelector('[data-formel="plus"]');
         b.disabled = true;
         b.title = 'Game Score+ visas när säsongen har tillräckligt många skott för xG-modellen.';
-        b.setAttribute('aria-pressed', 'false');
-        document.querySelector('[data-formel="gs"]').setAttribute('aria-pressed', 'true');
+        document.querySelectorAll('[data-formel]').forEach(function (x) { x.setAttribute('aria-pressed', String(x.dataset.formel === 'gs')); });
       }
       var lagSel = $('#f-lag');
       D.lag.map(function (t) { return t.lag; }).sort(function (a, b) { return a.localeCompare(b, 'sv'); })
         .forEach(function (l) { var o = el('option', null, l); o.value = l; lagSel.appendChild(o); });
-      var h = location.hash.slice(1);
-      if (h && document.getElementById(h) && document.getElementById(h).classList.contains('panel')) show(h);
-      drawAll();
+      if (D.excel) {
+        var dl = $('#dl');
+        dl.appendChild(document.createTextNode('All statistik finns också som '));
+        var a = el('a', null, 'Excel-fil');
+        a.href = D.excel;
+        dl.appendChild(a);
+        dl.appendChild(document.createTextNode(', med en flik per tabell.'));
+      }
+      show(location.hash.slice(1));
     })
     .catch(function (e) {
-      $('#take').textContent = 'Statistiken kunde inte laddas (' + e.message + '). Försök igen om en stund.';
+      $('#o-take').textContent = 'Statistiken kunde inte laddas (' + e.message + '). Försök igen om en stund.';
     });
 })();

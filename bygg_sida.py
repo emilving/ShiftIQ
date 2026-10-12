@@ -48,6 +48,10 @@ def integer(v):
     return 0 if v is None or pd.isna(v) else int(v)
 
 
+def logo_url(abbr):
+    return f"https://assets.nhle.com/logos/nhl/svg/{abbr}_light.svg" if abbr else ""
+
+
 def pos_code(p):
     if p == "Målvakt":
         return "MV"
@@ -87,6 +91,20 @@ def build_data(csv_dir: Path, season: str, cfg: dict):
         raise SystemExit(f"Hittar ingen statistik i {csv_dir}. Kör först: python nhl_stats.py")
 
     abbr = dict(zip(T["Lag"], T["Lagförkortning"]))
+    V = load(csv_dir, "Vinstchans")
+    PR = load(csv_dir, "Prognoser")
+
+    # lagens namn och loggor, nyckel = förkortning
+    lag_info = {}
+    for _, r in T.iterrows():
+        logo = r.get("Logga") if "Logga" in T else None
+        lag_info[r["Lagförkortning"]] = {"n": r["Lag"], "logo": logo if isinstance(logo, str) and logo else logo_url(r["Lagförkortning"])}
+    for _, r in V.iterrows():
+        for sida in ("Borta", "Hemma"):
+            k = r[f"{sida}lag kort"]
+            if k not in lag_info or not lag_info[k]["logo"]:
+                logo = r.get(f"{sida}lagets logga")
+                lag_info[k] = {"n": r[f"{sida}lag"], "logo": logo if isinstance(logo, str) and logo else logo_url(k)}
     has_plus = "Game Score+" in P and P["Game Score+"].notna().any()
 
     spelare = [{
@@ -117,6 +135,10 @@ def build_data(csv_dir: Path, season: str, cfg: dict):
     ins = pd.concat([P[[c for c in cols if c in P]], GK[[c for c in cols if c in GK]] if not GK.empty else None], ignore_index=True)
     ins["Motst kort"] = ins["Motståndare"].map(abbr)
 
+    pre = {}
+    for _, r in PR.iterrows():
+        pre[int(r["Match-id"])] = {"b": num(r["Chans borta"], 3), "h": num(r["Chans hemma"], 3)}
+
     matcher, cards = [], {}
     for _, m in M.sort_values(["Datum", "Match-id"]).iterrows():
         gid = int(m["Match-id"])
@@ -129,17 +151,19 @@ def build_data(csv_dir: Path, season: str, cfg: dict):
                 stj[key] = {"n": top["Spelare"], "k": top["Lagförkortning"], "v": num(top[col])}
         matcher.append({"id": gid, "d": m["Datum"], "b": m["Bortalag"], "h": m["Hemmalag"],
                         "bk": m["Bortalag kort"], "hk": m["Hemmalag kort"], "bm": integer(m["Bortamål"]),
-                        "hm": integer(m["Hemmamål"]), "avg": m["Avgjord i"], "stj": stj, "png": False})
+                        "hm": integer(m["Hemmamål"]), "avg": m["Avgjord i"], "stj": stj, "png": False,
+                        "pre": pre.get(gid)})
 
         def side(team, short, goals):
             r = rows[rows["Lag"] == team]
-            return {"n": team, "k": short, "m": goals,
+            return {"n": team, "k": short, "m": goals, "logo": lag_info.get(short, {}).get("logo", ""),
                     "spelare": [[pos_code(x["Position"]), x["Spelare"], num(x["Game Score"]), num(x.get("Game Score+"))]
                                 for _, x in r.iterrows()]}
         cards[gid] = {"id": gid, "d": m["Datum"], "datumText": datum_text(m["Datum"]), "avg": m["Avgjord i"],
                       "b": side(m["Bortalag"], m["Bortalag kort"], integer(m["Bortamål"])),
                       "h": side(m["Hemmalag"], m["Hemmalag kort"], integer(m["Hemmamål"])),
-                      "plus": bool(has_plus), "namn": cfg.get("namn", ""), "png": False}
+                      "plus": bool(has_plus), "namn": cfg.get("namn", ""), "sajt": cfg.get("sajtnamn", "ShiftIQ"),
+                      "png": False}
 
     def top(col, asc):
         sub = ins[ins[col].notna()] if col in ins else ins.iloc[0:0]
@@ -159,8 +183,36 @@ def build_data(csv_dir: Path, season: str, cfg: dict):
                 k += 1
         return [k, n]
 
+    # kommande matcher med vinstchans
+    idag = dt.date.today().isoformat()
+    kommande = []
+    for _, r in V.iterrows():
+        if str(r["Datum"]) < idag:
+            continue
+        g = {"id": int(r["Match-id"]), "d": str(r["Datum"]), "start": r.get("Start (UTC)") if isinstance(r.get("Start (UTC)"), str) else ""}
+        for key, sida in (("b", "Borta"), ("h", "Hemma")):
+            g[key] = {"n": r[f"{sida}lag"], "k": r[f"{sida}lag kort"], "p": num(r[f"Chans {sida.lower()}"], 4),
+                      "xg": num(r[f"Förväntade mål {sida.lower()}"]), "trott": r[f"{sida} spelade igår"] == "ja",
+                      "gp": integer(r[f"{sida} matcher"]), "mal": num(r[f"{sida} mål/match"]),
+                      "insl": num(r[f"{sida} insläppta/match"]), "xgf": num(r[f"{sida} xG för/match"]),
+                      "xga": num(r[f"{sida} xG mot/match"]), "gsax": num(r[f"{sida} GSAx/match"]),
+                      "form": r[f"{sida} form"] if isinstance(r[f"{sida} form"], str) else ""}
+        kommande.append(g)
+    kommande.sort(key=lambda g: (g["d"], g["start"], g["id"]))
+
+    # träffsäkerhet: matcher där båda lagen spelat minst 3 matcher innan
+    traff = {"n": 0, "k": 0, "grupper": []}
+    if not PR.empty:
+        q = PR[(PR["Matcher borta före"] >= 3) & (PR["Matcher hemma före"] >= 3)]
+        traff["n"], traff["k"] = int(len(q)), int((q["Favoriten vann"] == "ja").sum())
+        for lo, hi, namn in ((0.5, 0.55, "50–55 %"), (0.55, 0.6, "55–60 %"), (0.6, 0.65, "60–65 %"), (0.65, 1.01, "65 % eller mer")):
+            g = q[(q["Favoritens chans"] >= lo) & (q["Favoritens chans"] < hi)]
+            traff["grupper"].append({"namn": namn, "n": int(len(g)), "k": int((g["Favoriten vann"] == "ja").sum()),
+                                     "snitt": num(g["Favoritens chans"].mean(), 3) if len(g) else None})
+
     data = {
         "sasong": f"{season[:4]}/{season[6:]}", "uppdaterad": now_text(),
+        "sajt": cfg.get("sajtnamn", "ShiftIQ"), "lagInfo": lag_info, "kommande": kommande, "traff": traff,
         "forsta": str(M["Datum"].min()), "sista": str(M["Datum"].max()),
         "plus": bool(has_plus), "namn": cfg.get("namn", ""), "excel": None,
         "spelare": spelare, "mv": mv, "lag": lag, "matcher": matcher,
@@ -254,7 +306,7 @@ def main(argv=None):
     (site / "data" / "matcher").mkdir(parents=True, exist_ok=True)
 
     data, cards = build_data(data_root / "csv", a.sasong, cfg)
-    for x in data_root.glob("NHL_statistik_*.xlsx"):
+    for x in sorted(data_root.glob("*.xlsx"))[-1:]:
         shutil.copy2(x, site / "data" / x.name)
         data["excel"] = f"data/{x.name}"
 

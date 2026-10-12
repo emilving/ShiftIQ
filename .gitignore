@@ -1,0 +1,4 @@
+nhl_data/
+site/
+__pycache__/
+*.pyc

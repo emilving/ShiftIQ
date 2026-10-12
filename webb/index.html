@@ -3,57 +3,143 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NHL Game Score</title>
-<meta name="description" content="Game Score för varje NHL-spelare och match, uppdaterat varje morgon.">
+<title>ShiftIQ – NHL-statistik</title>
+<meta name="description" content="Game Score+ för varje NHL-spelare och match, vinstchans inför varje match. Uppdateras varje morgon.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 24'%3E%3Crect x='1' y='2' width='17' height='5' rx='2.5' fill='%2386A7D2'/%3E%3Crect x='9.5' y='9.5' width='17' height='5' rx='2.5' fill='%234677BA'/%3E%3Crect x='18' y='17' width='17' height='5' rx='2.5' fill='%231B4A8A'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700;800&family=Saira+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="wrap">
-  <div class="topbar">
-    <a class="mark" href="./">Game Score</a>
-    <div class="updated" id="updated"></div>
+<header class="site">
+  <div class="site-in">
+    <a class="brand" href="#oversikt">
+      <svg class="brand-mark" viewBox="0 0 36 24" aria-hidden="true"><rect x="1" y="2" width="17" height="5" rx="2.5" fill="#86A7D2"/><rect x="9.5" y="9.5" width="17" height="5" rx="2.5" fill="#4C9BE8"/><rect x="18" y="17" width="17" height="5" rx="2.5" fill="#FFFFFF"/></svg>
+      <span class="brand-name" id="brand-name">Shift<span class="iq">IQ</span></span>
+    </a>
+    <div class="site-upd" id="updated"></div>
+    <a class="site-om" href="#om">Om</a>
   </div>
-
-  <h1 class="title" id="title">NHL</h1>
-  <div class="period" id="period"></div>
-  <p class="take" id="take"></p>
-
-  <div class="controls">
-    <div class="seg" role="group" aria-label="Formel">
-      <button type="button" data-formel="plus" aria-pressed="true">Game Score+</button>
-      <button type="button" data-formel="gs" aria-pressed="false">Original</button>
+  <nav class="nav" aria-label="Sidor">
+    <div class="nav-in">
+      <a href="#oversikt" data-page="oversikt">Översikt</a>
+      <a href="#vinstchans" data-page="vinstchans">Vinstchans</a>
+      <a href="#matcher" data-page="matcher">Matcher</a>
+      <a href="#spelare" data-page="spelare">Spelare</a>
+      <a href="#lag" data-page="lag">Tabell</a>
+      <a href="#malvakter" data-page="malvakter">Målvakter</a>
+      <a href="#om" data-page="om">Om</a>
     </div>
+  </nav>
+</header>
+<nav class="tabbar" aria-label="Sidor">
+  <a href="#oversikt" data-page="oversikt"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Översikt</span></a>
+  <a href="#vinstchans" data-page="vinstchans"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 5 5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/></svg><span>Vinstchans</span></a>
+  <a href="#matcher" data-page="matcher"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg><span>Matcher</span></a>
+  <a href="#spelare" data-page="spelare" data-also="malvakter"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Spelare</span></a>
+  <a href="#lag" data-page="lag"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4 6h1M4 12h1M4 18h1"/></svg><span>Tabell</span></a>
+</nav>
+
+<main class="wrap" id="main">
+
+  <!-- Visas på sidorna med Game Score och flyttas dit av app.js -->
+  <div class="subbar" id="subbar" hidden>
     <div class="legend" aria-label="Färgskala">
       <span><i style="background: var(--svag)"></i>Svag, under 0</span>
       <span><i style="background: var(--godk)"></i>Godkänd, 0 till 1</span>
       <span><i style="background: var(--bra)"></i>Bra, 1 till 2</span>
       <span><i style="background: var(--lys)"></i>Lysande, över 2</span>
     </div>
+    <div>
+      <span class="seg-label" id="formel-label">Formel</span>
+      <div class="seg" role="group" aria-labelledby="formel-label">
+        <button type="button" data-formel="plus" aria-pressed="true">Game Score+</button>
+        <button type="button" data-formel="gs" aria-pressed="false">Original</button>
+      </div>
+    </div>
   </div>
 
-  <section class="stars" id="stars" aria-label="Säsongens stjärnor"></section>
+  <!-- ===== Översikt ===== -->
+  <section class="page" id="oversikt">
+    <div class="page-head">
+      <h1 id="o-title">NHL</h1>
+      <p class="lead" id="o-period"></p>
+      <p class="take" id="o-take"></p>
+    </div>
 
-  <div class="figs">
-    <div class="fig"><div class="v" id="f-matcher">–</div><div class="l">matcher</div></div>
-    <div class="fig"><div class="v" id="f-spelare">–</div><div class="l">spelare</div></div>
-    <div class="fig"><div class="v" id="f-vinnare">–</div><div class="l">av matcherna vanns av laget med högst Game Score</div></div>
-  </div>
+    <div class="block" id="o-next">
+      <div class="block-head"><h2>Nästa matchdag</h2><a class="more" href="#vinstchans">Alla prognoser</a></div>
+      <p class="note" id="o-next-day"></p>
+      <div class="matchups karusell" id="o-matchups"></div>
+    </div>
 
-  <nav class="tabs" role="tablist" aria-label="Avsnitt">
-    <button class="tab" role="tab" data-tab="spelare" aria-selected="true">Spelare</button>
-    <button class="tab" role="tab" data-tab="lag" aria-selected="false">Lag</button>
-    <button class="tab" role="tab" data-tab="malvakter" aria-selected="false">Målvakter</button>
-    <button class="tab" role="tab" data-tab="matcher" aria-selected="false">Matcher</button>
-    <button class="tab" role="tab" data-tab="topp" aria-selected="false">Bästa och sämsta</button>
-    <button class="tab" role="tab" data-tab="om" aria-selected="false">Så funkar det</button>
-  </nav>
+    <div class="block">
+      <div class="block-head"><h2>Senaste resultaten</h2><a class="more" href="#matcher">Alla matcher</a></div>
+      <p class="note" id="o-last-day"></p>
+      <div class="games karusell" id="o-games"></div>
+    </div>
 
-  <section class="panel" id="spelare" role="tabpanel">
-    <h2>Spelare</h2>
-    <p class="note">Snitt per match. Stapeln visar hur bra spelaren varit, färgen vilken nivå det motsvarar.</p>
+    <div class="duo">
+      <div class="block">
+        <div class="block-head"><h2>Säsongens stjärnor</h2><a class="more" href="#spelare">Alla spelare</a></div>
+        <div class="stars" id="o-stars"></div>
+      </div>
+
+      <div class="block">
+        <div class="block-head"><h2>Tabelltoppen</h2><a class="more" href="#lag">Hela tabellen</a></div>
+        <div class="box short" style="margin-top: 12px"><table class="rows" id="t-topp"><tbody></tbody></table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Vinstchans ===== -->
+  <section class="page" id="vinstchans" hidden>
+    <div class="page-head">
+      <h1>Vinstchans</h1>
+      <p class="lead">Chansen att vinna inför veckans matcher enligt vår modell. Den bygger på lagens mål, chanser (xG) och målvaktsspel hittills i säsongen. Tider i svensk tid.</p>
+    </div>
+    <div id="v-days"></div>
+
+    <div class="block">
+      <div class="block-head"><h2>Så har modellen träffat</h2></div>
+      <p class="note">Varje spelad match tippad i efterhand med bara de matcher som spelats innan, så som modellen hade sett det före nedsläpp. Matcher där något av lagen spelat färre än tre matcher är inte med.</p>
+      <div class="facts" id="v-facts"></div>
+      <div class="box short"><table class="rows" id="t-kalib">
+        <thead><tr><th>Favoritens chans</th><th class="n">Matcher</th><th class="n">Favoriten vann</th><th class="n hn">Väntat</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+
+    <div class="block about">
+      <div class="block-head"><h2>Så räknas chansen</h2></div>
+      <ul>
+        <li><b>Anfall och försvar.</b> Varje lags styrka räknas fram ur gjorda och insläppta mål samt förväntade mål (xG) för och emot. Chanserna väger mest, eftersom de säger mer om nästa match än vilka skott som råkade gå in.</li>
+        <li><b>Målvakten.</b> Insläppta mål ingår, så ett lag med en het målvakt får bättre försvar i modellen.</li>
+        <li><b>Form.</b> Senare matcher väger mer än tidiga. I början av säsongen dras alla lag mot ligasnittet så att ett par matcher inte ger orimliga siffror.</li>
+        <li><b>Hemmaplan och vila.</b> Hemmalaget får en liten fördel. Ett lag som spelade dagen innan får en liten nackdel.</li>
+        <li><b>Chansen.</b> Förväntade mål för båda lagen räknas om till chansen att vinna, förlängning och straffar inräknade.</li>
+      </ul>
+      <p class="note">Modellen är en uppskattning, inte ett facit. Hockey har mycket slump.</p>
+    </div>
+  </section>
+
+  <!-- ===== Matcher ===== -->
+  <section class="page" id="matcher" hidden>
+    <div class="page-head">
+      <h1>Matcher</h1>
+      <p class="lead">Alla spelade matcher, senaste först. Öppna en match för att se matchkortet.</p>
+    </div>
+    <div id="m-days"></div>
+  </section>
+
+  <!-- ===== Spelare ===== -->
+  <section class="page" id="spelare" hidden>
+    <div class="page-head">
+      <h1>Spelare</h1>
+      <div class="switch" aria-label="Visa"><a href="#spelare" aria-current="page">Utespelare</a><a href="#malvakter">Målvakter</a></div>
+      <p class="lead">Snitt per match. Stapeln visar hur bra spelaren varit, färgen vilken nivå det motsvarar.</p>
+    </div>
     <div class="filters">
       <select id="f-lag" aria-label="Lag"><option value="">Alla lag</option></select>
       <div class="seg" role="group" aria-label="Position" id="f-pos">
@@ -69,7 +155,7 @@
         <thead><tr>
           <th class="rk">#</th><th>Spelare</th><th class="hn">Lag</th><th class="hn">Pos</th>
           <th class="n hn"><button type="button" data-sort="gp">Matcher</button></th>
-          <th class="barc" aria-hidden="true"></th>
+          <th class="barc"><span class="sr">Stapel</span></th>
           <th class="n"><button type="button" data-sort="avg">Snitt</button></th>
           <th class="n hn"><button type="button" data-sort="sum">Summa</button></th>
           <th class="n hn"><button type="button" data-sort="p">Poäng</button></th>
@@ -78,82 +164,81 @@
       </table>
     </div>
     <div class="count" id="c-spelare"></div>
+
+    <div class="block">
+      <div class="block-head"><h2>Säsongens bästa och sämsta matcher</h2></div>
+      <div class="two" style="margin-top: 12px">
+        <div><p class="note">Högst värde i en enskild match.</p><div class="box short"><table class="rows" id="t-bast"><tbody></tbody></table></div></div>
+        <div><p class="note">Lägst värde i en enskild match.</p><div class="box short"><table class="rows" id="t-samst"><tbody></tbody></table></div></div>
+      </div>
+    </div>
   </section>
 
-  <section class="panel" id="lag" role="tabpanel" hidden>
-    <h2>Lag</h2>
-    <p class="note">Tabellen med lagets sammanlagda Game Score per match. Klicka på ett lag för att se dess spelare.</p>
-    <div class="box">
-      <table class="rows" id="t-lag">
+  <!-- ===== Tabell ===== -->
+  <section class="page" id="lag" hidden>
+    <div class="page-head">
+      <h1>Tabell</h1>
+      <p class="lead">Poäng och lagets sammanlagda Game Score per match. Klicka på ett lag för att se dess spelare.</p>
+    </div>
+    <div class="box" style="margin-top: 16px">
+      <table class="rows kompakt" id="t-lag">
         <thead><tr>
-          <th class="rk">#</th><th>Lag</th><th class="n">M</th><th class="n">V</th><th class="n hn">F</th><th class="n hn">FÖ</th>
-          <th class="n">P</th><th class="n hn">Mål</th><th class="barc" aria-hidden="true"></th><th class="n">GS/match</th><th class="hn">Bäst i laget</th>
+          <th class="rk">#</th><th>Lag</th><th class="n hn">M</th><th class="n">V</th><th class="n hn">F</th><th class="n hn">FÖ</th>
+          <th class="n">P</th><th class="n hn">Mål</th><th class="barc hn"><span class="sr">Stapel</span></th><th class="n">GS/match</th><th class="hn">Bäst i laget</th>
         </tr></thead>
         <tbody></tbody>
       </table>
     </div>
   </section>
 
-  <section class="panel" id="malvakter" role="tabpanel" hidden>
-    <h2>Målvakter</h2>
-    <p class="note" id="n-mv"></p>
-    <div class="box">
+  <!-- ===== Målvakter ===== -->
+  <section class="page" id="malvakter" hidden>
+    <div class="page-head">
+      <h1>Målvakter</h1>
+      <div class="switch" aria-label="Visa"><a href="#spelare">Utespelare</a><a href="#malvakter" aria-current="page">Målvakter</a></div>
+      <p class="lead" id="mv-lead"></p>
+    </div>
+    <div class="box" style="margin-top: 16px">
       <table class="rows" id="t-mv">
         <thead><tr>
           <th class="rk">#</th><th>Målvakt</th><th class="hn">Lag</th><th class="n">Matcher</th>
-          <th class="barc" aria-hidden="true"></th><th class="n">Snitt</th><th class="n hn">Rädd.%</th><th class="n hn">GSAx</th>
+          <th class="barc"><span class="sr">Stapel</span></th><th class="n">Snitt</th><th class="n hn">Rädd.%</th><th class="n hn">GSAx</th>
         </tr></thead>
         <tbody></tbody>
       </table>
     </div>
   </section>
 
-  <section class="panel" id="matcher" role="tabpanel" hidden>
-    <h2>Matcher</h2>
-    <p class="note">Alla färdigspelade matcher, senaste först. Klicka för att se matchkortet.</p>
-    <div id="games"></div>
-  </section>
-
-  <section class="panel" id="topp" role="tabpanel" hidden>
-    <div class="two">
-      <div>
-        <h2>Bästa matcherna</h2>
-        <p class="note">Högsta värdet en spelare fått i en enskild match.</p>
-        <div class="box"><table class="rows" id="t-bast"><tbody></tbody></table></div>
-      </div>
-      <div>
-        <h2>Sämsta matcherna</h2>
-        <p class="note">Lägsta värdet en spelare fått i en enskild match.</p>
-        <div class="box"><table class="rows" id="t-samst"><tbody></tbody></table></div>
-      </div>
+  <!-- ===== Om ===== -->
+  <section class="page about" id="om" hidden>
+    <div class="page-head">
+      <h1>Om ShiftIQ</h1>
+      <p class="lead">NHL-statistik som räknas fram från grunden varje morgon, direkt från NHL:s egen data.</p>
     </div>
-  </section>
-
-  <section class="panel about" id="om" role="tabpanel" hidden>
     <h2>Vad är Game Score?</h2>
     <p>Ett tal som sammanfattar hur bra en spelare var i en match. Det väger ihop poäng, skott, tekningar, utvisningar och hur det gick för laget när spelaren var på isen. Noll är en vanlig insats, och över 2 är en riktigt stark match.</p>
-    <h2>Två formler</h2>
+    <h2>Game Score+</h2>
     <p><b>Original</b> är Dom Luszczyszyns Game Score från 2016. <b>Game Score+</b> är vår vidareutveckling. Den behåller originalets vikter för mål, assist, blockeringar, utvisningar och tekningar, men mäter chansernas kvalitet i stället för att bara räkna skott.</p>
     <div class="formula">
       <div><b>Utespelare:</b> 0.75 · mål + 0.7 · primär assist + 0.55 · sekundär assist + 1.0 · ixG + 0.05 · blockeringar + 0.15 · dragna utvisningar − 0.15 · tagna utvisningar + 0.01 · vunna tekningar − 0.01 · förlorade tekningar + 1.0 · (xGF − xGA) + 0.15 · (GF − GA)</div>
       <div><b>Målvakt:</b> 0.75 · GSAx</div>
     </div>
     <ul>
-      <li><b>ixG</b> är spelarens egna förväntade mål: summan av hur stor chans varje skott hade att gå in, utifrån avstånd, vinkel, skottyp, returer och numerärt läge. Ett skott från blå linjen väger alltså mindre än ett friläge.</li>
-      <li><b>xGF − xGA</b> är förväntade mål för minus mot medan spelaren var på isen vid 5 mot 5. Det ersätter originalets räkning av skottförsök.</li>
+      <li><b>ixG</b> är spelarens egna förväntade mål: summan av hur stor chans varje skott hade att gå in, utifrån avstånd, vinkel, skottyp, returer och numerärt läge.</li>
+      <li><b>xGF − xGA</b> är förväntade mål för minus mot medan spelaren var på isen vid 5 mot 5.</li>
       <li><b>GF − GA</b> är riktiga mål för minus mot på isen vid 5 mot 5.</li>
-      <li><b>GSAx</b> är räddade mål över förväntan. En målvakt bedöms mot hur svåra skotten var, inte hur många de var. Noll är en normal insats.</li>
+      <li><b>GSAx</b> är räddade mål över förväntan. Noll är en normal målvaktsinsats.</li>
     </ul>
     <h2>Var siffrorna kommer ifrån</h2>
-    <p>All data hämtas direkt från NHL varje morgon och räknas om från grunden: händelser, byten och resultat. Förväntade mål räknas med en egen modell som tränas om på säsongens alla skott vid varje uppdatering, så äldre matchers Game Score+ kan ändras något över tid.</p>
+    <p>All data hämtas från NHL varje morgon och räknas om: händelser, byten och resultat. Förväntade mål räknas med en egen modell som tränas om på säsongens alla skott vid varje uppdatering, så äldre matchers värden kan ändras något över tid. Lagens loggor visas från NHL.</p>
     <p id="dl"></p>
   </section>
+</main>
 
-  <footer class="foot">
-    <div>Data: NHL. Formel: Game Score+, vidareutvecklad från Dom Luszczyszyns Game Score.</div>
-    <div id="sign"></div>
-  </footer>
-</div>
+<footer class="foot">
+  <div>Data: NHL. Formel: Game Score+, vidareutvecklad från Dom Luszczyszyns Game Score.</div>
+  <div><span id="foot-upd"></span> <span id="sign"></span></div>
+</footer>
 <script src="app.js"></script>
 </body>
 </html>

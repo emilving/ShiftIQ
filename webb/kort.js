@@ -1,4 +1,4 @@
-/* NHL Game Score – matchkortet. Läser data/matcher/<id>.json. */
+/* ShiftIQ – matchkortet. Läser data/matcher/<id>.json. */
 (function () {
   'use strict';
   var q = new URLSearchParams(location.search);
@@ -12,24 +12,56 @@
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function f2(v) { return (v < 0 ? '−' : '') + Math.abs(v).toFixed(2); }
   function tier(v) { return v < 0 ? 'var(--svag)' : v < 1 ? 'var(--godk)' : v < 2 ? 'var(--bra)' : 'var(--lys)'; }
+  function varumarke(node, namn) {
+    node.textContent = '';
+    if (/IQ$/.test(namn) && namn.length > 2) {
+      node.appendChild(document.createTextNode(namn.slice(0, -2)));
+      node.appendChild(el('span', 'iq', 'IQ'));
+    } else node.textContent = namn;
+  }
+  function setLogo(img, src) {
+    img.onerror = function () { img.style.visibility = 'hidden'; };
+    if (src) { img.style.visibility = ''; img.src = src; } else img.style.visibility = 'hidden';
+  }
+  function smallLogo(src, size) {
+    var img = el('img', 'logo'); img.alt = ''; img.width = size; img.height = size;
+    setLogo(img, src);
+    return img;
+  }
+  function bilderKlara() {
+    var imgs = Array.prototype.slice.call(document.querySelectorAll('#kort img'));
+    return Promise.all(imgs.map(function (img) {
+      if (img.complete) return true;
+      return new Promise(function (ok) { img.addEventListener('load', ok); img.addEventListener('error', ok); setTimeout(ok, 8000); });
+    }));
+  }
   var POS = { F: 'F', B: 'B', MV: 'MV' };
 
+  // Mobil: kortet visas som en läsbar sida i stället för en förminskad bild.
+  var mobilFraga = window.matchMedia ? window.matchMedia('(max-width: 700px)') : null;
+  function arMobil() { return !exportMode && mobilFraga && mobilFraga.matches; }
   function scale() {
     if (exportMode) return;
-    var box = $('#skala');
+    var box = $('#skala'), yta = $('#yta');
+    document.body.classList.toggle('mobil', arMobil());
+    if (arMobil()) { yta.style.transform = ''; box.style.height = ''; return; }
     var s = Math.min(1, box.clientWidth / 1080);
-    $('#yta').style.transform = 'scale(' + s + ')';
+    yta.style.transform = 'scale(' + s + ')';
     box.style.height = (1350 * s) + 'px';
   }
   window.addEventListener('resize', scale);
+  if (mobilFraga && mobilFraga.addEventListener) mobilFraga.addEventListener('change', scale);
 
   function render() {
     var vi = formel === 'plus' ? 3 : 2;
     var b = G.b, h = G.h;
     var awayWon = b.m > h.m;
-    document.title = 'Matchkort ' + b.k + ' – ' + h.k;
+    document.title = 'Matchkort ' + b.k + '–' + h.k + ' – ' + (G.sajt || 'ShiftIQ');
     $('#kort').setAttribute('aria-label', 'Matchkort ' + b.n + ' mot ' + h.n + ', ' + b.m + '–' + h.m);
-    $('#k-mark').textContent = formel === 'plus' ? 'Game Score+' : 'Game Score';
+    varumarke($('#k-mark'), G.sajt || 'ShiftIQ');
+    $('#k-sub').textContent = formel === 'plus' ? 'Game Score+' : 'Game Score';
+    setLogo($('#k-bl'), b.logo);
+    setLogo($('#k-hl'), h.logo);
     $('#k-date').textContent = G.datumText;
     $('#k-bn').textContent = b.n; $('#k-bk').textContent = b.k;
     $('#k-hn').textContent = h.n; $('#k-hk').textContent = h.k;
@@ -38,13 +70,12 @@
     bm.className = awayWon ? '' : 'lose'; hm.className = awayWon ? 'lose' : '';
     $('#k-avg').textContent = G.avg === 'Förlängning' ? 'Avgjord i förlängning' : G.avg === 'Straffar' ? 'Avgjord på straffar' : '';
 
-    var all = b.spelare.map(function (p) { return { p: p, k: b.k }; }).concat(h.spelare.map(function (p) { return { p: p, k: h.k }; }))
+    var all = b.spelare.map(function (p) { return { p: p, k: b.k, logo: b.logo }; }).concat(h.spelare.map(function (p) { return { p: p, k: h.k, logo: h.logo }; }))
       .filter(function (x) { return x.p[vi] != null; });
     var vals = all.map(function (x) { return x.p[vi]; });
     var lo = Math.floor(Math.min.apply(null, [-1].concat(vals)));
     var hi = Math.ceil(Math.max.apply(null, [2].concat(vals)));
-    var BW = 190;
-    var x = function (v) { return (v - lo) / (hi - lo) * BW; };
+    var x = function (v) { return (v - lo) / (hi - lo) * 100; };  // procent av stapelns bredd
     var zero = x(0);
 
     var stars = $('#k-stars');
@@ -54,7 +85,10 @@
       var r = el('div', 'r', String(i + 1)); r.style.color = tier(s.p[vi]);
       var info = el('div', 't');
       info.appendChild(el('div', 'n', s.p[1]));
-      info.appendChild(el('div', 's', s.k + ', ' + f2(s.p[vi])));
+      var sline = el('div', 's');
+      sline.appendChild(smallLogo(s.logo, 22));
+      sline.appendChild(document.createTextNode(s.k + ', ' + f2(s.p[vi])));
+      info.appendChild(sline);
       t.appendChild(r); t.appendChild(info);
       stars.appendChild(t);
     });
@@ -67,14 +101,15 @@
       var total = ps.reduce(function (s, p) { return s + p[vi]; }, 0);
       var col = el('div', 'k-col');
       var head = el('div', 'k-head');
-      head.appendChild(el('div', 'n', t.n));
+      var hn = el('div', 'n');
+      hn.appendChild(smallLogo(t.logo, 30));
+      hn.appendChild(document.createTextNode(t.n));
+      head.appendChild(hn);
       var lost = G.avg !== 'Ordinarie' && !won ? 'Förlust efter ' + (G.avg === 'Straffar' ? 'straffar' : 'förl.') : 'Förlust';
       head.appendChild(el('div', won ? 'pill win' : 'pill', won ? 'Vinst' : lost));
       col.appendChild(head);
       col.appendChild(el('div', 'k-sum', x3[2] + ', lagets summa ' + f2(total)));
       var list = el('div', 'k-list');
-      var z = el('div', 'k-zero'); z.style.left = (34 + 8 + 160 + 8 + zero) + 'px';
-      list.appendChild(z);
       ps.forEach(function (p) {
         var v = p[vi];
         var row = el('div', 'k-row');
@@ -83,10 +118,12 @@
         var bb = el('div', 'b');
         var i = el('i');
         var bx = x(v);
-        i.style.left = Math.min(zero, bx) + 'px';
-        i.style.width = Math.max(2, Math.abs(bx - zero)) + 'px';
+        i.style.left = Math.min(zero, bx) + '%';
+        i.style.width = 'max(2px, ' + Math.abs(bx - zero) + '%)';
         i.style.background = tier(v);
         i.style.borderRadius = v >= 0 ? '0 4px 4px 0' : '4px 0 0 4px';
+        var nolla = el('span', 'z'); nolla.style.left = zero + '%';
+        bb.appendChild(nolla);
         bb.appendChild(i);
         row.appendChild(bb);
         row.appendChild(el('div', 'v', f2(v)));
@@ -132,7 +169,7 @@
         pb.disabled = true;
       }
       render();
-      return document.fonts ? document.fonts.ready : null;
+      return Promise.all([document.fonts ? document.fonts.ready : null, bilderKlara()]);
     })
     .then(function () { window.__kortKlart = true; })
     .catch(function (e) {

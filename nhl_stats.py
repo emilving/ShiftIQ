@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-NHL-statistik med Game Score – hämtad direkt från NHL:s egna data.
+ShiftIQ – NHL-statistik med Game Score+, hämtad direkt från NHL:s egna data.
 
 Vad skriptet gör
 ----------------
@@ -15,9 +15,11 @@ Vad skriptet gör
    egen xG-modell (förväntade mål), Game Score och vår egen Game Score+.
 4. Målvakter: skott mot, räddningar, insläppta, räddningsprocent, xG mot och GSAx.
 5. Lag: tabell, mål, skott, Corsi%, xG%, PP- och SH-mål samt lagets Game Score.
-6. Valfritt (--edge): NHL Edge-data per spelare (skridskofart, skotthastighet,
+6. Vinstchans för kommande matcher och hur modellen hade tippat varje spelad match
+   (se vinstchans.py).
+7. Valfritt (--edge): NHL Edge-data per spelare (skridskofart, skotthastighet,
    åkt sträcka, zontid m.m.) för säsongen.
-7. Skriver allt till en Excel-fil (en flik per tabell) och CSV-filer.
+8. Skriver allt till en Excel-fil (en flik per tabell) och CSV-filer.
 
 Game Score (Dom Luszczyszyn, Hockey Graphs 2016):
   Utespelare = 0.75·G + 0.7·A1 + 0.55·A2 + 0.075·SOG + 0.05·BLK + 0.15·PD − 0.15·PT
@@ -203,6 +205,17 @@ def game_score_goalie(r):
 # Schema
 # ---------------------------------------------------------------------------
 
+def logo_url(abbr):
+    return f"https://assets.nhle.com/logos/nhl/svg/{abbr}_light.svg" if abbr else ""
+
+
+def team_info(t):
+    t = t or {}
+    abbr = t.get("abbrev", "")
+    name = f"{txt(t.get('placeName'))} {txt(t.get('commonName'))}".strip() or txt(t.get("name")) or abbr
+    return {"id": t.get("id"), "abbr": abbr, "name": name, "logo": t.get("logo") or logo_url(abbr)}
+
+
 def list_games(f: Fetcher, season, start: dt.date, end: dt.date, game_types):
     today = dt.date.today()
     games = {}
@@ -219,7 +232,9 @@ def list_games(f: Fetcher, season, start: dt.date, end: dt.date, game_types):
                 if not (start.isoformat() <= gdate <= end.isoformat()):
                     continue
                 games[g["id"]] = {"id": g["id"], "date": gdate, "state": g.get("gameState", ""),
-                                  "type": g.get("gameType")}
+                                  "type": g.get("gameType"), "sched": g.get("gameScheduleState", "OK"),
+                                  "start": g.get("startTimeUTC", ""),
+                                  "home": team_info(g.get("homeTeam")), "away": team_info(g.get("awayTeam"))}
         nxt = data.get("nextStartDate")
         nd = dt.date.fromisoformat(nxt) if nxt else None
         d = nd if nd and nd > d else d + dt.timedelta(days=7)
@@ -343,6 +358,7 @@ def parse_game(meta, pbp, box, shifts):
     tname = {t["id"]: (f"{txt(t.get('placeName'))} {txt(t.get('commonName'))}".strip() or txt(t.get("name")) or t.get("abbrev"))
              for t in (home, away)}
     tabbr = {t["id"]: t.get("abbrev", "") for t in (home, away)}
+    tlogo = {t["id"]: t.get("logo") or logo_url(t.get("abbrev", "")) for t in (home, away)}
     roster = {}
     for r in pbp.get("rosterSpots", []):
         roster[r["playerId"]] = {"name": f"{txt(r.get('firstName'))} {txt(r.get('lastName'))}".strip(),
@@ -451,6 +467,8 @@ def parse_game(meta, pbp, box, shifts):
                         sk[q]["SH-poäng"] += 1
                 T["Mål"] += 1
                 O["Insläppta mål"] += 1
+                if opp_g == 0:
+                    T["Mål i tom bur"] += 1
                 T["Skott"] += 1
                 O["Skott mot"] += 1
                 if strength == "PP":
@@ -638,7 +656,9 @@ def parse_game(meta, pbp, box, shifts):
                       "GF 5v5": T["GF 5v5"], "GA 5v5": T["GA 5v5"], "PP-mål": T["PP-mål"], "SH-mål": T["SH-mål"],
                       "Träffar": T["Träffar"], "Blockeringar": T["Blockeringar"], "Utvisningar": T["Utvisningar"],
                       "Utvisningsminuter": T["Utvisningsminuter"], "Vunna tekningar": T["Vunna tekningar"],
-                      "Förlorade tekningar": T["Förlorade tekningar"], "_id": tm})
+                      "Förlorade tekningar": T["Förlorade tekningar"], "_id": tm, "Lag-id": tm, "Logga": tlogo[tm],
+                      "Mål (ej tom bur)": T["Mål"] - T["Mål i tom bur"],
+                      "Insläppta (ej tom bur)": team[opp]["Mål"] - team[opp]["Mål i tom bur"]})
     # kontroll: mål i play-by-play mot slutresultatet (straffmål räknas inte i play-by-play här)
     for tr in trows:
         goals_pbp = team[tr["_id"]]["Mål"]
@@ -847,6 +867,7 @@ ABOUT = [
     ("Källa", "NHL:s öppna datatjänster: api-web.nhle.com (schema, play-by-play, boxscore, Edge) och api.nhle.com (byteslistor)."),
     ("Game Score", "Dom Luszczyszyns formel från 2016 (Hockey Graphs). Utespelare: 0.75·Mål + 0.7·Primär assist + 0.55·Sekundär assist + 0.075·Skott + 0.05·Blockeringar + 0.15·Dragna utvisningar − 0.15·Tagna utvisningar + 0.01·Vunna tekningar − 0.01·Förlorade tekningar + 0.05·CF − 0.05·CA + 0.15·GF − 0.15·GA (CF/CA/GF/GA på isen vid 5 mot 5). Målvakt: −0.75·Insläppta + 0.1·Räddningar."),
     ("Game Score+", "Vår vidareutveckling av Game Score. Samma vikter för mål, assist, blockeringar, utvisningar, tekningar och mål på isen, men två delar byts mot mått på chansernas kvalitet: 0.075·Skott blir 1.0·ixG (spelarens egna förväntade mål) och 0.05·(CF − CA) blir 1.0·(xGF − xGA) på isen vid 5 mot 5. Ett skott från blå linjen väger då mindre än ett friläge. Målvakter: 0.75·GSAx (räddade mål över förväntan), så att en målvakt bedöms mot hur svåra skotten var i stället för hur många de var. Noll är en normal målvaktsinsats."),
+    ("Vinstchans", "Prognos före varje match. Lagens anfall och försvar räknas fram ur säsongens mål och förväntade mål (xG väger 65 %), där senare matcher väger mer och varje lag dras mot ligasnittet med 8 snittmatcher. Förväntade mål i matchen = anfall × motståndarens försvar / ligasnitt, med 5 % fördel för hemmalaget och 3 % nackdel för lag som spelade dagen innan. Chansen räknas med Poissonfördelning; vid lika efter full tid avgörs 60 % i förlängning och resten på straffar. Fliken Prognoser visar hur modellen hade tippat varje spelad match, räknat bara på matcherna innan."),
     ("Skiljer sig från korten", "HockeyStatCards använder Luszczyszyns nyare modell med xG och justering för med- och motspelare. Den är inte offentlig, så värdena här blir inte identiska med korten."),
     ("CF / CA", "Skottförsök (mål, skott på mål, missar, blockerade) för och mot laget medan spelaren var på isen vid 5 mot 5."),
     ("GF / GA", "Mål för och mot medan spelaren var på isen vid 5 mot 5."),
@@ -865,10 +886,12 @@ def write_outputs(out_dir: Path, season, tables: dict, excel=True):
     out_dir.mkdir(parents=True, exist_ok=True)
     csv_dir = out_dir / "csv"
     csv_dir.mkdir(exist_ok=True)
-    xlsx = out_dir / f"NHL_statistik_{season[:4]}-{season[6:]}.xlsx"
+    xlsx = out_dir / f"ShiftIQ_{season[:4]}-{season[6:]}.xlsx"
     for name, df in tables.items():
         if df is not None and len(df):
             df.to_csv(csv_dir / f"{name}.csv", index=False, encoding="utf-8-sig")
+        elif (csv_dir / f"{name}.csv").exists():
+            (csv_dir / f"{name}.csv").unlink()  # inga gamla prognoser kvar när det inte finns kommande matcher
     if not excel:
         return None
     try:
@@ -928,15 +951,19 @@ def main(argv=None):
     f = Fetcher(root / season / "radata", offline=a.offline)
     types = (2, 3) if a.slutspel else (2,)
 
-    log(f"Säsong {season[:4]}/{season[6:]}: hämtar matchschema {start} – {end} …")
+    today = dt.date.today()
+    sched_end = max(end, today + dt.timedelta(days=7)) if end >= today - dt.timedelta(days=1) else end
+    log(f"Säsong {season[:4]}/{season[6:]}: hämtar matchschema {start} – {sched_end} …")
     try:
-        games = list_games(f, season, start, end, types)
+        games = list_games(f, season, start, sched_end, types)
     except Exception as e:  # noqa: BLE001
         log(f"Kunde inte hämta matchschemat från NHL: {e}")
         log("Kontrollera internetanslutningen och försök igen om en stund.")
         sys.exit(1)
-    done = [g for g in games if g["state"] in ("OFF", "FINAL")]
-    log(f"  {len(done)} färdigspelade matcher hittades.")
+    done = [g for g in games if g["state"] in ("OFF", "FINAL") and g["date"] <= end.isoformat()]
+    upcoming = [g for g in games if g["state"] in ("FUT", "PRE") and g.get("sched", "OK") == "OK"
+                and g["date"] >= today.isoformat() and g["home"]["id"] and g["away"]["id"]]
+    log(f"  {len(done)} färdigspelade och {len(upcoming)} kommande matcher hittades.")
     if not done:
         log("Inga färdigspelade matcher ännu.")
         return
@@ -980,6 +1007,7 @@ def main(argv=None):
         xgf, xga = defaultdict(float), defaultdict(float)
         gxa, gga = defaultdict(float), defaultdict(float)
         txf, txa = defaultdict(float), defaultdict(float)
+        taf, taa = defaultdict(float), defaultdict(float)
         for rec in SH.itertuples(index=False):
             v = getattr(rec, "xG")
             if v is None or (isinstance(v, float) and math.isnan(v)):
@@ -988,6 +1016,8 @@ def main(argv=None):
             shooter = rec[SH.columns.get_loc("Skytt-id")]
             goalie = rec[SH.columns.get_loc("Målvakt-id")]
             goal = rec[SH.columns.get_loc("Mål")]
+            taf[(gid, rec[SH.columns.get_loc("_team")])] += v
+            taa[(gid, rec[SH.columns.get_loc("_opp")])] += v
             if shooter:
                 ixg[(gid, shooter)] += v
             if goalie:
@@ -1012,6 +1042,8 @@ def main(argv=None):
         tkeys = list(zip(T["Match-id"], T["_id"]))
         T["xGF 5v5"] = [round(txf.get(k, 0), 3) for k in tkeys]
         T["xGA 5v5"] = [round(txa.get(k, 0), 3) for k in tkeys]
+        T["xGF"] = [round(taf.get(k, 0), 3) for k in tkeys]
+        T["xGA"] = [round(taa.get(k, 0), 3) for k in tkeys]
     else:
         P[["ixG", "xGF 5v5", "xGA 5v5"]] = np.nan
         if len(GK):
@@ -1019,6 +1051,8 @@ def main(argv=None):
             GK["GSAx"] = np.nan
         T["xGF 5v5"] = np.nan
         T["xGA 5v5"] = np.nan
+        T["xGF"] = np.nan
+        T["xGA"] = np.nan
 
     # Game Score+ (vår formel): xG i stället för skott- och Corsi-termerna, GSAx för målvakter
     if model is not None:
@@ -1062,8 +1096,18 @@ def main(argv=None):
         shots_out["xG"] = shots_out["xG"].round(4)
     T_out = T.drop(columns=["_id"])
 
-    tables = {"Spelare": S, "Målvakter": G, "Lag": L, "Per match": per_game_out,
-              "Målvakter per match": GK, "Lag per match": T_out, "Matcher": matches, "Skott": shots_out}
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import vinstchans as VC
+    try:
+        progn = VC.prognoser(T_out)
+        komm = VC.kommande(T_out, upcoming)
+    except Exception as e:  # noqa: BLE001 – vinstchansen får aldrig stoppa resten
+        problems.append(f"Vinstchansen kunde inte räknas: {type(e).__name__}: {e}")
+        progn, komm = pd.DataFrame(), pd.DataFrame()
+
+    tables = {"Spelare": S, "Målvakter": G, "Lag": L, "Vinstchans": komm, "Per match": per_game_out,
+              "Målvakter per match": GK, "Lag per match": T_out, "Matcher": matches, "Prognoser": progn,
+              "Skott": shots_out}
 
     if a.edge:
         log("Hämtar NHL Edge-data …")
