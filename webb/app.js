@@ -1,4 +1,4 @@
-/* ShiftIQ – webbsidan. Läser data/sasong.json som byggs av bygg_sida.py. */
+/* Slotline – webbsidan. Läser data/sasong.json som byggs av bygg_sida.py. */
 (function () {
   'use strict';
   var MAN = ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli', 'augusti', 'september', 'oktober', 'november', 'december'];
@@ -34,9 +34,11 @@
   }
   function varumarke(node, namn) {
     node.textContent = '';
-    if (/IQ$/.test(namn) && namn.length > 2) {
-      node.appendChild(document.createTextNode(namn.slice(0, -2)));
-      node.appendChild(el('span', 'iq', 'IQ'));
+    // Sista delen av namnet får accentfärg: Slot + line.
+    var m = /^(.+?)(line|IQ)$/i.exec(namn || '');
+    if (m) {
+      node.appendChild(document.createTextNode(m[1]));
+      node.appendChild(el('span', 'accent', m[2]));
     } else node.textContent = namn;
   }
   function avg(p) { return formel === 'plus' ? p.pl : p.gs; }

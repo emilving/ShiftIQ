@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-ShiftIQ – NHL-statistik med Game Score+, hämtad direkt från NHL:s egna data.
+Slotline – NHL-statistik med Game Score+, hämtad direkt från NHL:s egna data.
 
 Vad skriptet gör
 ----------------
@@ -886,7 +886,10 @@ def write_outputs(out_dir: Path, season, tables: dict, excel=True):
     out_dir.mkdir(parents=True, exist_ok=True)
     csv_dir = out_dir / "csv"
     csv_dir.mkdir(exist_ok=True)
-    xlsx = out_dir / f"ShiftIQ_{season[:4]}-{season[6:]}.xlsx"
+    xlsx = out_dir / f"Slotline_{season[:4]}-{season[6:]}.xlsx"
+    for gammal in out_dir.glob("*.xlsx"):
+        if gammal != xlsx and excel:
+            gammal.unlink()  # t.ex. en fil från när projektet hette något annat
     for name, df in tables.items():
         if df is not None and len(df):
             df.to_csv(csv_dir / f"{name}.csv", index=False, encoding="utf-8-sig")

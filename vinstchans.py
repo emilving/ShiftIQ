@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Vinstchans – ShiftIQ:s matchmodell.
+Vinstchans – Slotlines matchmodell.
 
 Så räknas chansen att vinna:
 1. Varje lags styrka tas fram ur säsongens matcher: gjorda och insläppta mål

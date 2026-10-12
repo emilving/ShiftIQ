@@ -166,7 +166,7 @@ def build_data(csv_dir: Path, season: str, cfg: dict):
         cards[gid] = {"id": gid, "d": m["Datum"], "datumText": datum_text(m["Datum"]), "avg": m["Avgjord i"],
                       "b": side(m["Bortalag"], m["Bortalag kort"], integer(m["Bortamål"])),
                       "h": side(m["Hemmalag"], m["Hemmalag kort"], integer(m["Hemmamål"])),
-                      "plus": bool(has_plus), "namn": cfg.get("namn", ""), "sajt": cfg.get("sajtnamn", "ShiftIQ"),
+                      "plus": bool(has_plus), "namn": cfg.get("namn", ""), "sajt": cfg.get("sajtnamn", "Slotline"),
                       "png": False}
 
     def top(col, asc):
@@ -216,7 +216,7 @@ def build_data(csv_dir: Path, season: str, cfg: dict):
 
     data = {
         "sasong": f"{season[:4]}/{season[6:]}", "uppdaterad": now_text(),
-        "sajt": cfg.get("sajtnamn", "ShiftIQ"), "lagInfo": lag_info, "kommande": kommande, "traff": traff,
+        "sajt": cfg.get("sajtnamn", "Slotline"), "lagInfo": lag_info, "kommande": kommande, "traff": traff,
         "forsta": str(M["Datum"].min()), "sista": str(M["Datum"].max()),
         "plus": bool(has_plus), "namn": cfg.get("namn", ""), "kontakt": cfg.get("kontakt", ""), "excel": None,
         "spelare": spelare, "mv": mv, "lag": lag, "matcher": matcher,
@@ -310,7 +310,7 @@ def main(argv=None):
     (site / "data" / "matcher").mkdir(parents=True, exist_ok=True)
 
     data, cards = build_data(data_root / "csv", a.sasong, cfg)
-    for x in sorted(data_root.glob("*.xlsx"))[-1:]:
+    for x in sorted(data_root.glob("*.xlsx"), key=lambda p: p.stat().st_mtime)[-1:]:
         shutil.copy2(x, site / "data" / x.name)
         data["excel"] = f"data/{x.name}"
 

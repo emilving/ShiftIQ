@@ -1,4 +1,4 @@
-/* ShiftIQ – matchkortet. Läser data/matcher/<id>.json. */
+/* Slotline – matchkortet. Läser data/matcher/<id>.json. */
 (function () {
   'use strict';
   var q = new URLSearchParams(location.search);
@@ -14,9 +14,11 @@
   function tier(v) { return v < 0 ? 'var(--svag)' : v < 1 ? 'var(--godk)' : v < 2 ? 'var(--bra)' : 'var(--lys)'; }
   function varumarke(node, namn) {
     node.textContent = '';
-    if (/IQ$/.test(namn) && namn.length > 2) {
-      node.appendChild(document.createTextNode(namn.slice(0, -2)));
-      node.appendChild(el('span', 'iq', 'IQ'));
+    // Sista delen av namnet får accentfärg: Slot + line.
+    var m = /^(.+?)(line|IQ)$/i.exec(namn || '');
+    if (m) {
+      node.appendChild(document.createTextNode(m[1]));
+      node.appendChild(el('span', 'accent', m[2]));
     } else node.textContent = namn;
   }
   var FARG = window.LAGFARG || {};
@@ -74,9 +76,9 @@
     var vi = formel === 'plus' ? 3 : 2;
     var b = G.b, h = G.h;
     var awayWon = b.m > h.m;
-    document.title = 'Matchkort ' + b.k + '–' + h.k + ' – ' + (G.sajt || 'ShiftIQ');
+    document.title = 'Matchkort ' + b.k + '–' + h.k + ' – ' + (G.sajt || 'Slotline');
     $('#kort').setAttribute('aria-label', 'Matchkort ' + b.n + ' mot ' + h.n + ', ' + b.m + '–' + h.m);
-    varumarke($('#k-mark'), G.sajt || 'ShiftIQ');
+    varumarke($('#k-mark'), G.sajt || 'Slotline');
     $('#k-sub').textContent = formel === 'plus' ? 'Game Score+' : 'Game Score';
     setLogo($('#k-bl'), b.logo, b.k);
     setLogo($('#k-hl'), h.logo, h.k);

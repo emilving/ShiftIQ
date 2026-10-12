@@ -1,6 +1,6 @@
-# ShiftIQ
+# Slotline
 
-NHL-statistik som uppdaterar sig själv varje morgon. ShiftIQ hämtar alla matcher direkt från NHL och räknar fram Game Score+ för varje spelare och match. Den räknar också ut vinstchansen inför kommande matcher och ritar ett matchkort per match. Allt läggs ut på en egen webbsida.
+NHL-statistik som uppdaterar sig själv varje morgon. Slotline hämtar alla matcher direkt från NHL och räknar fram Game Score+ för varje spelare och match. Den räknar också ut vinstchansen inför kommande matcher och ritar ett matchkort per match. Allt läggs ut på en egen webbsida.
 
 Allt körs gratis på GitHub. Du behöver inte ha datorn igång.
 
@@ -18,16 +18,16 @@ Allt körs gratis på GitHub. Du behöver inte ha datorn igång.
 ## Kom igång (en gång, ungefär 10 minuter)
 
 1. **Skapa ett konto** på [github.com](https://github.com). Det är gratis.
-2. **Skapa ett projekt.** Klicka på **+** uppe till höger och välj **New repository**. Döp det till `shiftiq`, välj **Public** och klicka på **Create repository**.
-3. **Ladda upp filerna.** Klicka på länken **uploading an existing file**. Dra in allt som ligger i mappen `shiftiq`, inklusive mappen `webb`. Klicka på **Commit changes**.
+2. **Skapa ett projekt.** Klicka på **+** uppe till höger och välj **New repository**. Döp det till `slotline`, välj **Public** och klicka på **Create repository**.
+3. **Ladda upp filerna.** Klicka på länken **uploading an existing file**. Dra in allt som ligger i mappen `slotline`, inklusive mappen `webb`. Klicka på **Commit changes**.
 4. **Lägg till schemat.** Mappar som börjar med punkt följer ofta inte med när man drar in filer. Gör så här:
    1. Klicka på **Add file** och sedan **Create new file**.
    2. Skriv `.github/workflows/uppdatera.yml` som filnamn.
    3. Klistra in innehållet från filen `uppdatera.yml`.
    4. Klicka på **Commit changes**.
 5. **Slå på webbsidan.** Gå till **Settings**, sedan **Pages**. Under **Source** väljer du **GitHub Actions**.
-6. **Starta första körningen.** Gå till fliken **Actions** och välj **ShiftIQ – uppdatera statistik**. Klicka på **Run workflow** och sedan på den gröna **Run workflow**. Första gången tar det 30–45 minuter, sedan några minuter per dag.
-7. **Klart.** Sidan ligger på `https://DITT-ANVÄNDARNAMN.github.io/shiftiq/`.
+6. **Starta första körningen.** Gå till fliken **Actions** och välj **Slotline – uppdatera statistik**. Klicka på **Run workflow** och sedan på den gröna **Run workflow**. Första gången tar det 30–45 minuter, sedan några minuter per dag.
+7. **Klart.** Sidan ligger på `https://DITT-ANVÄNDARNAMN.github.io/slotline/`.
 
 Därefter uppdateras allt automatiskt varje morgon vid nio, svensk tid.
 
@@ -41,15 +41,15 @@ Har du redan satt upp projektet? Ladda upp de nya filerna på samma sätt som i 
 
 | Inställning | Vad den gör |
 |---|---|
-| `sajtnamn` | Namnet i sidhuvudet och på matchkorten (`ShiftIQ`). |
-| `namn` | Ditt konto, till exempel `@shiftiq` på X. Visas längst ner på sidan och på matchkorten. Lämna tomt (`""`) för att inte visa något. |
+| `sajtnamn` | Namnet i sidhuvudet och på matchkorten (`Slotline`). |
+| `namn` | Ditt namn eller konto, till exempel på X. Visas längst ner på sidan och på matchkorten. Lämna tomt (`""`) för att inte visa något. |
 | `kontakt` | Länk dit man kan höra av sig, till exempel med frågor eller om något ska tas bort. Standard är projektets Issues-sida på GitHub. |
 | `visa_loggor` | `true` visar lagens loggor från NHL. `false` visar i stället en prick i lagets färg bredvid förkortningen. |
 | `dagar_med_bilder` | Hur många dagar bakåt det skapas nedladdningsbara bilder (standard 21). |
 
 ## Game Score+
 
-Game Score+ är ShiftIQ:s vidareutveckling av Dom Luszczyszyns Game Score från 2016. Vikterna för mål, assist, blockeringar, utvisningar och tekningar är desamma. Det som skiljer är att chansernas kvalitet räknas, inte bara antalet skott:
+Game Score+ är Slotlines vidareutveckling av Dom Luszczyszyns Game Score från 2016. Vikterna för mål, assist, blockeringar, utvisningar och tekningar är desamma. Det som skiljer är att chansernas kvalitet räknas, inte bara antalet skott:
 
 | Del | Original | Game Score+ |
 |---|---|---|
@@ -84,7 +84,7 @@ Sidan visar också hur modellen hade tippat varje spelad match, räknat bara på
 
 ## Bra att veta
 
-- **Rättigheter:** ShiftIQ är en oberoende fansida utan vinstsyfte och utan koppling till NHL, lagen eller Dom Luszczyszyn. Det står på sidan och på matchkorten. Lagnamn och loggor tillhör respektive lag och NHL. Loggorna hämtas direkt från NHL:s server och kan stängas av med `visa_loggor`. Håll sidan fri från annonser och betalning, och ta bort det du blir ombedd att ta bort.
+- **Rättigheter:** Slotline är en oberoende fansida utan vinstsyfte och utan koppling till NHL, lagen eller Dom Luszczyszyn. Det står på sidan och på matchkorten. Lagnamn och loggor tillhör respektive lag och NHL. Loggorna hämtas direkt från NHL:s server och kan stängas av med `visa_loggor`. Håll sidan fri från annonser och betalning, och ta bort det du blir ombedd att ta bort.
 - **Om en körning misslyckas** syns ett rött kryss under **Actions**. Klicka på körningen och se vilket steg som stoppade. NHL:s datatjänster är öppna men inte officiellt dokumenterade och kan ändras. Kopiera felmeddelandet och fråga, så går det att rätta.
 - **GitHub pausar schemat** i publika projekt efter 60 dagar utan aktivitet. Under säsongen sparas nya tabeller varje dag, och det räknas som aktivitet. Efter sommaruppehållet kan du behöva slå på det igen under **Actions** med **Enable workflow**.
 - **Köra på egen dator:**

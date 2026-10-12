@@ -1,4 +1,4 @@
-/* ShiftIQ – lagens färger: [huvudfärg, reservfärg]. Används när två lag möts och när loggor inte visas. */
+/* Slotline – lagens färger: [huvudfärg, reservfärg]. Används när två lag möts och när loggor inte visas. */
 window.LAGFARG = {
   ANA: ['#F47A38', '#B9975B'], BOS: ['#FFB81C', '#000000'], BUF: ['#003087', '#FFB81C'], CGY: ['#C8102E', '#F1BE48'],
   CAR: ['#CE1126', '#000000'], CHI: ['#CF0A2C', '#000000'], COL: ['#6F263D', '#236192'], CBJ: ['#002654', '#CE1126'],

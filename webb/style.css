@@ -1,4 +1,4 @@
-/* ShiftIQ – gemensam stil för webbsidan och matchkorten */
+/* Slotline – gemensam stil för webbsidan och matchkorten */
 :root {
   --ice: #F1F5F8;
   --ink: #13202E;
@@ -42,7 +42,7 @@ header.site { background: var(--ink); color: #fff; z-index: 20; }
 .brand:hover { color: #fff; }
 .brand-mark { width: 36px; height: 24px; flex: none; }
 .brand-name { font-family: var(--display); font-weight: 800; font-size: 30px; letter-spacing: .005em; line-height: 1; }
-.brand-name .iq { color: var(--linje); }
+.brand-name .accent { color: var(--linje); }
 .site-upd { font-size: 14px; color: var(--nav-text); text-align: right; }
 .site-om { display: none; color: var(--nav-text); text-decoration: none; font-weight: 600; font-size: 16px; min-height: 44px; align-items: center; padding: 0 4px; }
 .site-om:hover, .site-om[aria-current="page"] { color: #fff; }
@@ -220,7 +220,7 @@ footer.foot { max-width: 1180px; margin: 0 auto; padding: 18px clamp(16px, 3.5vw
 #kort .k-brand { display: inline-flex; align-items: center; gap: 12px; }
 #kort .k-brand svg { width: 42px; height: 28px; }
 #kort .k-mark { font-family: var(--display); font-weight: 800; font-size: 32px; line-height: 1; }
-#kort .k-mark .iq { color: var(--lys); }
+#kort .k-mark .accent { color: var(--lys); }
 #kort .k-sub { font-size: 20px; color: var(--mute); margin-left: 4px; }
 #kort .k-date { font-size: 20px; color: var(--mute); }
 #kort .k-hero { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; column-gap: 24px; margin-top: 26px; }
