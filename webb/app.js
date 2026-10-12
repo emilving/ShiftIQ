@@ -14,6 +14,7 @@
   var formel = 'plus';
   var page = 'oversikt';
   var state = { lag: '', pos: '', min: MIN, rookie: false, q: '', sort: 'avg' };
+  var mvState = { min: 1, rookie: false };
 
   // ---------- små hjälpare ----------
   function $(s) { return document.querySelector(s); }
@@ -172,6 +173,8 @@
   });
   $('#f-min').addEventListener('input', function (e) { state.min = +e.target.value; drawPlayers(); });
   $('#f-rookie').addEventListener('change', function (e) { state.rookie = e.target.checked; drawPlayers(); });
+  $('#g-min').addEventListener('input', function (e) { mvState.min = +e.target.value; drawGoalies(); });
+  $('#g-rookie').addEventListener('change', function (e) { mvState.rookie = e.target.checked; drawGoalies(); });
   $('#f-q').addEventListener('input', function (e) { state.q = e.target.value.trim().toLowerCase(); drawPlayers(); });
   document.querySelectorAll('#t-spelare th button').forEach(function (b) {
     b.addEventListener('click', function () { state.sort = b.dataset.sort; drawPlayers(); });
@@ -419,18 +422,18 @@
 
   // ---------- Spelare ----------
   // Reglaget för matcher går från 1 till flest spelade matcher.
-  function matcherReglage() {
-    var max = D.spelare.reduce(function (m, p) { return Math.max(m, p.gp || 0); }, 1);
-    var r = $('#f-min');
+  function matcherReglage(lista, st, id) {
+    var max = lista.reduce(function (m, p) { return Math.max(m, p.gp || 0); }, 1);
+    var r = $('#' + id + '-min');
     if (+r.max !== max) r.max = String(max);
-    if (state.min > max) state.min = max;
-    r.value = String(state.min);
-    r.style.setProperty('--fyll', (max > 1 ? (state.min - 1) / (max - 1) * 100 : 100) + '%');
-    $('#f-min-txt').textContent = state.min <= 1 ? 'Alla matcher' :
-      state.min >= max ? 'Alla ' + max + ' matcher' : 'Minst ' + state.min + ' matcher';
+    if (st.min > max) st.min = max;
+    r.value = String(st.min);
+    r.style.setProperty('--fyll', (max > 1 ? (st.min - 1) / (max - 1) * 100 : 100) + '%');
+    $('#' + id + '-min-txt').textContent = st.min <= 1 ? 'Alla matcher' :
+      st.min >= max ? 'Alla ' + max + ' matcher' : 'Minst ' + st.min + ' matcher';
   }
   function drawPlayers() {
-    matcherReglage();
+    matcherReglage(D.spelare, state, 'f');
     var list = D.spelare.filter(function (p) {
       return (!state.lag || p.lag === state.lag) && (!state.pos || p.pos === state.pos) &&
         p.gp >= state.min && (!state.rookie || p.rook) && avg(p) != null &&
@@ -460,7 +463,7 @@
       tb.appendChild(tr);
     });
     if (!list.length) emptyRow(tb, 9, 'Inga spelare matchar filtret.');
-    $('#c-spelare').textContent = list.length ? list.length + (state.rookie ? ' rookies' : ' spelare') : '';
+    $('#c-spelare').textContent = list.length ? list.length + (state.rookie ? (list.length === 1 ? ' rookie' : ' rookies') : ' spelare') : '';
 
     var src = D.topp[formel === 'plus' ? 'pl' : 'gs'];
     var vals = src.bast.concat(src.samst).map(function (r) { return r.v; });
@@ -517,7 +520,8 @@
     $('#mv-lead').textContent = formel === 'plus'
       ? 'Game Score+ för målvakter bygger på räddade mål över förväntan (GSAx). Noll är en normal insats.'
       : 'Originalformeln ger plus för varje räddning och minus för varje insläppt mål.';
-    var list = D.mv.filter(function (p) { return avg(p) != null; }).sort(function (a, b) { return (avg(b) - avg(a)) || (b.gp - a.gp); });
+    matcherReglage(D.mv, mvState, 'g');
+    var list = D.mv.filter(function (p) { return avg(p) != null && p.gp >= mvState.min && (!mvState.rookie || p.rook); }).sort(function (a, b) { return (avg(b) - avg(a)) || (b.gp - a.gp); });
     var dom = domain(list.map(avg));
     var tb = $('#t-mv tbody');
     tb.textContent = '';
@@ -535,6 +539,8 @@
       td(tr, f2(p.gsax), 'n hn');
       tb.appendChild(tr);
     });
+    if (!list.length) emptyRow(tb, 8, 'Inga målvakter matchar filtret.');
+    $('#c-mv').textContent = list.length ? list.length + (list.length === 1 ? (mvState.rookie ? ' rookie' : ' målvakt') : (mvState.rookie ? ' rookies' : ' målvakter')) : '';
   }
 
   function draw() {

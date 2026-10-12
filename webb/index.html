@@ -200,7 +200,12 @@
       <div class="switch" aria-label="Visa"><a href="#spelare">Utespelare</a><a href="#malvakter" aria-current="page">Målvakter</a></div>
       <p class="lead" id="mv-lead"></p>
     </div>
-    <div class="box" style="margin-top: 16px">
+    <div class="filters">
+      <label class="check rookie-val"><input type="checkbox" id="g-rookie"> Bara rookies</label>
+      <label class="matcher-val"><span id="g-min-txt">Alla matcher</span>
+        <input type="range" id="g-min" min="1" max="1" value="1" step="1" aria-label="Minst antal matcher"></label>
+    </div>
+    <div class="box">
       <table class="rows" id="t-mv">
         <thead><tr>
           <th class="rk">#</th><th>Målvakt</th><th class="hn">Lag</th><th class="n">Matcher</th>
@@ -209,6 +214,7 @@
         <tbody></tbody>
       </table>
     </div>
+    <div class="count" id="c-mv"></div>
   </section>
 
   <!-- ===== Om ===== -->
