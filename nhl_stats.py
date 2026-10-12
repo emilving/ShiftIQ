@@ -747,6 +747,32 @@ def flatten(obj, prefix=""):
     return out
 
 
+def fetch_rookies(f: Fetcher, season, player_ids):
+    """Rookie enligt NHL:s regel (Calder): högst 25 grundseriematcher i varje tidigare säsong,
+    inte 6+ matcher i två tidigare säsonger och inte fyllda 26 år den 15 september.
+    Spelarsidan sparas, så bara nya spelare hämtas vid nästa körning."""
+    start = int(str(season)[:4])
+    out, failed = {}, 0
+    for pid in sorted({int(x) for x in player_ids if pd.notna(x)}):
+        try:
+            data = f.get(f"{WEB}/player/{pid}/landing", f.root / "spelarinfo" / f"{pid}.json")
+        except Exception:  # noqa: BLE001
+            failed += 1
+            continue
+        per = {}
+        for t in data.get("seasonTotals") or []:
+            if t.get("leagueAbbrev") == "NHL" and t.get("gameTypeId") == 2 and int(t.get("season", 0)) < int(season):
+                per[t["season"]] = per.get(t["season"], 0) + int(t.get("gamesPlayed") or 0)
+        rookie = all(n <= 25 for n in per.values()) and sum(n >= 6 for n in per.values()) < 2
+        born = str(data.get("birthDate") or "")
+        if rookie and len(born) >= 10:
+            rookie = born[:10] > f"{start - 26}-09-15"
+        out[pid] = rookie
+    if failed:
+        log(f"  Kunde inte hämta spelarinfo för {failed} spelare (rookie-märkningen saknas för dem).")
+    return out
+
+
 def fetch_edge(f: Fetcher, season, players: pd.DataFrame, game_type=2):
     today = dt.date.today().isoformat()
     sk_rows, g_rows, failed = [], [], []
@@ -1077,6 +1103,14 @@ def main(argv=None):
         T[f"Lagets {col}"] = [round(team_gs.get((m, l), np.nan), 3) for m, l in zip(T["Match-id"], T["Lag"])]
 
     S, G, L = season_tables(P, GK, T)
+    log("Kollar vilka spelare som är rookies …")
+    ids = list(S["Spelar-id"]) + (list(G["Spelar-id"]) if G is not None else [])
+    rk = fetch_rookies(f, season, ids)
+    ja_nej = lambda x: "ja" if rk.get(int(x)) else "nej"
+    S.insert(S.columns.get_loc("Positionsgrupp") + 1, "Rookie", S["Spelar-id"].map(ja_nej))
+    if G is not None:
+        G.insert(G.columns.get_loc("Lag") + 1, "Rookie", G["Spelar-id"].map(ja_nej))
+    log(f"  {int((S['Rookie'] == 'ja').sum())} rookies bland utespelarna.")
 
     matches = T[T["Hemma/borta"] == "Hemma"][["Match-id", "Datum", "Motståndare", "Lag", "Mål mot", "Mål för", "Avgjord i",
                                               "Skott mot", "Skott", "Lagets Game Score", "Lagets Game Score+"]].copy()

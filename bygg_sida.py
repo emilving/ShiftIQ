@@ -113,7 +113,7 @@ def build_data(csv_dir: Path, season: str, cfg: dict):
         "g": integer(r["Mål"]), "a": integer(r["Assist"]), "p": integer(r["Poäng"]),
         "gs": num(r["Game Score snitt"]), "gsS": num(r["Game Score"]),
         "pl": num(r.get("Game Score+ snitt")), "plS": num(r.get("Game Score+")),
-        "toi": num(r.get("Istid/match"), 1),
+        "toi": num(r.get("Istid/match"), 1), "rook": 1 if r.get("Rookie") == "ja" else 0,
     } for _, r in S.iterrows()]
 
     mv = [{
@@ -121,6 +121,7 @@ def build_data(csv_dir: Path, season: str, cfg: dict):
         "gp": integer(r["Matcher"]), "gs": num(r["Game Score snitt"]), "gsS": num(r["Game Score"]),
         "pl": num(r.get("Game Score+ snitt")), "plS": num(r.get("Game Score+")),
         "sv": num(r.get("Räddnings-%"), 4), "gsax": num(r.get("GSAx")),
+        "rook": 1 if r.get("Rookie") == "ja" else 0,
     } for _, r in G.iterrows()] if not G.empty else []
 
     lag = [{

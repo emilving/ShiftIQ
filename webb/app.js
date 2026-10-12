@@ -13,7 +13,7 @@
   var D = null;
   var formel = 'plus';
   var page = 'oversikt';
-  var state = { lag: '', pos: '', min: true, q: '', sort: 'avg' };
+  var state = { lag: '', pos: '', min: MIN, rookie: false, q: '', sort: 'avg' };
 
   // ---------- små hjälpare ----------
   function $(s) { return document.querySelector(s); }
@@ -170,7 +170,8 @@
       drawPlayers();
     });
   });
-  $('#f-min').addEventListener('change', function (e) { state.min = e.target.checked; drawPlayers(); });
+  $('#f-min').addEventListener('input', function (e) { state.min = +e.target.value; drawPlayers(); });
+  $('#f-rookie').addEventListener('change', function (e) { state.rookie = e.target.checked; drawPlayers(); });
   $('#f-q').addEventListener('input', function (e) { state.q = e.target.value.trim().toLowerCase(); drawPlayers(); });
   document.querySelectorAll('#t-spelare th button').forEach(function (b) {
     b.addEventListener('click', function () { state.sort = b.dataset.sort; drawPlayers(); });
@@ -417,10 +418,22 @@
   }
 
   // ---------- Spelare ----------
+  // Reglaget för matcher går från 1 till flest spelade matcher.
+  function matcherReglage() {
+    var max = D.spelare.reduce(function (m, p) { return Math.max(m, p.gp || 0); }, 1);
+    var r = $('#f-min');
+    if (+r.max !== max) r.max = String(max);
+    if (state.min > max) state.min = max;
+    r.value = String(state.min);
+    r.style.setProperty('--fyll', (max > 1 ? (state.min - 1) / (max - 1) * 100 : 100) + '%');
+    $('#f-min-txt').textContent = state.min <= 1 ? 'Alla matcher' :
+      state.min >= max ? 'Alla ' + max + ' matcher' : 'Minst ' + state.min + ' matcher';
+  }
   function drawPlayers() {
+    matcherReglage();
     var list = D.spelare.filter(function (p) {
       return (!state.lag || p.lag === state.lag) && (!state.pos || p.pos === state.pos) &&
-        (!state.min || p.gp >= MIN) && avg(p) != null &&
+        p.gp >= state.min && (!state.rookie || p.rook) && avg(p) != null &&
         (!state.q || p.n.toLowerCase().indexOf(state.q) >= 0 || p.lag.toLowerCase().indexOf(state.q) >= 0);
     });
     var key = { avg: avg, sum: sum, gp: function (p) { return p.gp; }, p: function (p) { return p.p; } }[state.sort];
@@ -434,7 +447,9 @@
     list.forEach(function (p, i) {
       var tr = el('tr');
       td(tr, String(i + 1), 'rk');
-      td(tr, p.n, 'nm');
+      var namn = el('span', null, p.n);
+      if (p.rook) { var r = el('span', 'rookie', 'R'); r.title = 'Rookie'; namn.appendChild(r); }
+      td(tr, namn, 'nm');
       td(tr, team(p.k, 22), 'm hn');
       td(tr, p.pos, 'm hn');
       td(tr, String(p.gp), 'n hn');
@@ -445,7 +460,7 @@
       tb.appendChild(tr);
     });
     if (!list.length) emptyRow(tb, 9, 'Inga spelare matchar filtret.');
-    $('#c-spelare').textContent = list.length ? list.length + ' spelare' : '';
+    $('#c-spelare').textContent = list.length ? list.length + (state.rookie ? ' rookies' : ' spelare') : '';
 
     var src = D.topp[formel === 'plus' ? 'pl' : 'gs'];
     var vals = src.bast.concat(src.samst).map(function (r) { return r.v; });
@@ -509,7 +524,9 @@
     list.forEach(function (p, i) {
       var tr = el('tr');
       td(tr, String(i + 1), 'rk');
-      td(tr, p.n, 'nm');
+      var namn = el('span', null, p.n);
+      if (p.rook) { var r = el('span', 'rookie', 'R'); r.title = 'Rookie'; namn.appendChild(r); }
+      td(tr, namn, 'nm');
       td(tr, team(p.k, 22), 'm hn');
       td(tr, String(p.gp), 'n');
       barCell(tr, avg(p), dom[0], dom[1], tier(avg(p)));

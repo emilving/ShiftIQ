@@ -104,6 +104,15 @@ img.logo { object-fit: contain; flex: none; vertical-align: middle; }
 .filters .seg { border-color: var(--rule); border-radius: 8px; }
 .check { display: inline-flex; gap: 8px; align-items: center; font-size: 16px; }
 .check input { width: 18px; height: 18px; accent-color: var(--ink); }
+.rookie-val { padding: 0 12px; min-height: 42px; border: 1.5px solid var(--rule); border-radius: 8px; background: var(--board); cursor: pointer; font-weight: 600; }
+.rookie-val:has(input:checked) { border-color: var(--bra); background: #E6EEF8; }
+.matcher-val { display: inline-flex; flex-direction: column; gap: 2px; min-width: 180px; font-size: 14px; font-weight: 600; color: var(--mute); }
+.matcher-val input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; margin: 8px 0; border-radius: 999px; cursor: pointer;
+  background: linear-gradient(to right, var(--bra) var(--fyll, 0%), var(--rule) var(--fyll, 0%)); }
+.matcher-val input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--board); border: 2px solid var(--lys); box-shadow: 0 1px 3px rgba(19,32,46,.25); }
+.matcher-val input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--board); border: 2px solid var(--lys); }
+.rookie { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 4px; background: var(--bra); color: #fff; font-size: 11px; font-weight: 700; line-height: 16px; vertical-align: 2px; }
+@media (max-width: 640px) { .matcher-val { flex: 1 1 100%; } }
 
 /* ---------- tabeller ---------- */
 .box { background: var(--board); border: 1px solid var(--rule); border-radius: 10px; max-height: 42rem; overflow: auto; }

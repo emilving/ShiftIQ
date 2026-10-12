@@ -147,7 +147,9 @@
         <button type="button" data-pos="F" aria-pressed="false">Forwards</button>
         <button type="button" data-pos="B" aria-pressed="false">Backar</button>
       </div>
-      <label class="check"><input type="checkbox" id="f-min" checked> Minst 3 matcher</label>
+      <label class="check rookie-val"><input type="checkbox" id="f-rookie"> Bara rookies</label>
+      <label class="matcher-val"><span id="f-min-txt">Minst 3 matcher</span>
+        <input type="range" id="f-min" min="1" max="3" value="3" step="1" aria-label="Minst antal matcher"></label>
       <input type="search" id="f-q" placeholder="Sök spelare" aria-label="Sök spelare">
     </div>
     <div class="box">
