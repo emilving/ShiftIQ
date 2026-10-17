@@ -440,3 +440,15 @@ body.mobil .rapport { padding: 0 16px; }
   #t-tur td.nm { max-width: 8.6rem; }
   #t-tur .rk { width: 1.8rem; }
 }
+
+/* ---------- målvakter i vinstchansen ---------- */
+.mu-mv { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--soft); }
+.mu-mv-h { font-size: 13px; font-weight: 700; color: var(--mute); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+.mu-mv-namn { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-weight: 600; font-size: 15px; }
+.mu-mv-namn .h { text-align: right; }
+.mu-mv-sub { font-size: 13px; font-weight: 500; color: var(--mute); }
+.mu-alt { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; margin-top: 6px; font-size: 14px; color: var(--mute); }
+.mu-alt-v { font-weight: 700; color: var(--ink); white-space: nowrap; }
+.mu-alt-v small { font-weight: 600; margin-left: 2px; }
+.mu-alt-v small.ned { color: var(--svag); }
+.mu-alt-v small.upp { color: var(--lys); }

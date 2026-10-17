@@ -240,6 +240,44 @@
     foot.appendChild(el('span', null, 'Hemma: ' + g.h.k));
     a.appendChild(foot);
 
+    // troliga målvakter och chansen om reserven står
+    if ((g.b.mv && g.b.mv.length) || (g.h.mv && g.h.mv.length)) {
+      var mvBox = el('div', 'mu-mv');
+      var rubrik = el('div', 'mu-mv-h', 'Troliga målvakter');
+      mvBox.appendChild(rubrik);
+      var namnrad = el('div', 'mu-mv-namn');
+      [g.b, g.h].forEach(function (t, i) {
+        var c = el('div', i ? 'h' : 'b');
+        var m = (t.mv || [])[0];
+        if (m) {
+          var ln = el('a', 'sp-lank', m.n); ln.href = 'spelare.html?id=' + m.id; c.appendChild(ln);
+          c.appendChild(el('div', 'mu-mv-sub', (m.sv != null ? (m.sv * 100).toFixed(1).replace('.', ',') + ' %' : '–') + ' · GSAx ' + f2(m.gsax)));
+        } else c.textContent = '–';
+        namnrad.appendChild(c);
+      });
+      mvBox.appendChild(namnrad);
+      var alt = [];
+      [['b', g.b], ['h', g.h]].forEach(function (x) {
+        var t = x[1], m2 = (t.mv || [])[1];
+        if (!m2 || t.alt == null) return;
+        var ph = t.alt, pb = 1 - t.alt;
+        var egen = x[0] === 'h' ? ph : pb, nu = t.p;
+        var rad = el('div', 'mu-alt');
+        var txt = el('span', 'mu-alt-t');
+        txt.appendChild(document.createTextNode('Om '));
+        var ln = el('a', 'sp-lank', m2.n); ln.href = 'spelare.html?id=' + m2.id; txt.appendChild(ln);
+        txt.appendChild(document.createTextNode(' står för ' + t.k));
+        rad.appendChild(txt);
+        var d = Math.round(egen * 100) - Math.round(nu * 100);
+        var v = el('span', 'mu-alt-v', t.k + ' ' + pct(egen));
+        v.appendChild(el('small', d < 0 ? 'ned' : d > 0 ? 'upp' : '', d === 0 ? ' ±0' : (d > 0 ? ' +' : ' −') + Math.abs(d)));
+        rad.appendChild(v);
+        alt.push(rad);
+      });
+      alt.forEach(function (r) { mvBox.appendChild(r); });
+      a.appendChild(mvBox);
+    }
+
     if (medDetaljer) {
       var det = el('details');
       det.appendChild(el('summary', null, 'Jämför lagen'));

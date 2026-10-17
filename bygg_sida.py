@@ -331,6 +331,17 @@ def build_data(csv_dir: Path, season: str, cfg: dict):
                       "insl": num(r[f"{sida} insläppta/match"]), "xgf": num(r[f"{sida} xG för/match"]),
                       "xga": num(r[f"{sida} xG mot/match"]), "gsax": num(r[f"{sida} GSAx/match"]),
                       "form": r[f"{sida} form"] if isinstance(r[f"{sida} form"], str) else ""}
+            mv_ = []
+            for i in (1, 2):
+                namn_ = r.get(f"{sida} mv{i}")
+                if isinstance(namn_, str) and namn_:
+                    mv_.append({"n": namn_, "id": val(r.get(f"{sida} mv{i}-id")), "varfor": r.get(f"{sida} mv{i} varför", ""),
+                                "gp": val(r.get(f"{sida} mv{i} matcher")), "sv": num(r.get(f"{sida} mv{i} rädd%"), 4),
+                                "gsax": num(r.get(f"{sida} mv{i} GSAx"))})
+            g[key]["mv"] = mv_
+            alt = num(r.get(f"Chans hemma om {sida.lower()} mv2"), 4)
+            if alt is not None:
+                g[key]["alt"] = alt  # hemmalagets chans om reserven står för det här laget
         kommande.append(g)
     kommande.sort(key=lambda g: (g["d"], g["start"], g["id"]))
 

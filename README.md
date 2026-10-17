@@ -66,12 +66,14 @@ Förväntade mål räknas med en egen modell som tränas om på säsongens alla 
 
 Modellen (`vinstchans.py`) räknar fram varje lags anfall och försvar ur säsongens matcher:
 
-- **Underlag:** gjorda och insläppta mål (utan mål i tom bur) samt förväntade mål för och emot. Förväntade mål väger 65 %.
-- **Form och säsongsstart:** senare matcher väger mer än tidiga. Varje lag dras mot ligasnittet, så att ett par matcher i början av säsongen inte ger orimliga siffror.
-- **Matchen:** förväntade mål i matchen är eget anfall × motståndarens försvar / ligasnittet. Hemmalaget får 5 % fördel, och ett lag som spelade dagen innan får 3 % nackdel.
+- **Anfall:** gjorda mål (utan mål i tom bur) och förväntade mål. Förväntade mål väger 70 %.
+- **Försvar:** förväntade mål emot, alltså hur mycket chanser laget släpper till.
+- **Målvakten** räknas för sig: insläppta mål delat med förväntade mål emot. Trolig startare är den som stått flest av lagets senaste tio matcher. Spelade han dagen innan räknas reserven som trolig. Kortet visar också chansen om reserven står.
+- **Form och förra säsongen:** senare matcher väger mer än tidiga. Varje lag utgår från förra säsongens nivå, halvvägs mot ligasnittet, och målvakterna från förra säsongens räddningsprocent. Det gör att några matcher i början av säsongen inte ger orimliga siffror.
+- **Matchen:** förväntade mål = eget anfall × motståndarens försvar / ligasnittet × motståndarmålvaktens kvot. Hemmalaget får 5 % fördel, och ett lag som spelade dagen innan får 3 % nackdel.
 - **Chansen:** räknas med Poissonfördelning, där förlängning och straffar ingår.
 
-Sidan visar också hur modellen hade tippat varje spelad match, räknat bara på matcherna innan, så att man kan se hur bra den träffar.
+Inställningarna är testade på säsongens spelade matcher, där varje prognos bara får se matcherna innan. Sidan visar också hur modellen hade tippat varje spelad match, så att man kan se hur bra den träffar.
 
 ## Förväntade poäng
 
