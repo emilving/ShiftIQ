@@ -377,6 +377,16 @@ def parse_game(meta, pbp, box, shifts):
     shots = []
 
     plays = [p for p in pbp.get("plays", []) if (p.get("periodDescriptor") or {}).get("periodType") != "SO"]
+    so_rows = []
+    for p in pbp.get("plays", []):
+        if (p.get("periodDescriptor") or {}).get("periodType") != "SO" or p.get("typeDescKey") not in ("goal", "shot-on-goal", "missed-shot", "failed-shot-attempt"):
+            continue
+        d = p.get("details") or {}
+        who = d.get("scoringPlayerId") or d.get("shootingPlayerId")
+        tm = roster.get(who, {}).get("team") or d.get("eventOwnerTeamId")
+        if tm in tname:
+            so_rows.append({"Match-id": gid, "Ordning": len(so_rows) + 1, "Lag": tname[tm], "Lagförkortning": tabbr[tm],
+                            "Skytt-id": who, "Skytt": roster.get(who, {}).get("name", ""), "Mål": int(p.get("typeDescKey") == "goal")})
 
     # Vilket mål anfaller varje lag i varje period? (majoritet av skottens x-koordinat)
     xs = defaultdict(list)
@@ -521,6 +531,14 @@ def parse_game(meta, pbp, box, shifts):
                    "Skottyp": d.get("shotType", ""), "Läge": p.get("situationCode", ""),
                    "Egna utespelare": own_sk, "Motståndarens utespelare": opp_sk, "Tom bur": int(opp_g == 0),
                    "5 mot 5": int(five), "Mål": int(kind == "goal"), "x": x, "y": y,
+                   "Läge (kort)": "PP" if own_sk > opp_sk else ("SH" if own_sk < opp_sk else "EV"),
+                   "Assist 1-id": d.get("assist1PlayerId") if kind == "goal" else None,
+                   "Assist 1": roster.get(d.get("assist1PlayerId"), {}).get("name", "") if kind == "goal" else "",
+                   "Assist 2-id": d.get("assist2PlayerId") if kind == "goal" else None,
+                   "Assist 2": roster.get(d.get("assist2PlayerId"), {}).get("name", "") if kind == "goal" else "",
+                   "Mål i säsongen": d.get("scoringPlayerTotal") if kind == "goal" else None,
+                   "Assist 1 i säsongen": d.get("assist1PlayerTotal") if kind == "goal" else None,
+                   "Assist 2 i säsongen": d.get("assist2PlayerTotal") if kind == "goal" else None,
                    "Avstånd (fot)": None, "Vinkel (grader)": None, "Retur": 0, "Rush": 0,
                    "_for": on_for, "_against": on_against, "_team": tm, "_opp": opp}
             if x is not None and y is not None:
@@ -665,7 +683,7 @@ def parse_game(meta, pbp, box, shifts):
         shootout_bonus = 1 if (last_type == "SO" and tr["Resultat"] == "V") else 0
         if goals_pbp + shootout_bonus != tr["Mål för"]:
             checks.append(f"{tr['Lag']}: {int(goals_pbp)} mål i händelselistan men {tr['Mål för']} i resultatet")
-    return rows, grows, trows, shots, checks
+    return rows, grows, trows, shots, checks, so_rows
 
 
 # ---------------------------------------------------------------------------
@@ -815,6 +833,59 @@ def pct(a, b):
     return np.where(tot > 0, a / tot, np.nan)
 
 
+def expected_points(SH: pd.DataFrame, P: pd.DataFrame, K=8.0):
+    """Förväntade mål, assist och poäng per spelare för hela säsongen.
+
+    Mål: summan av xG för spelarens egna skott (skott mot tom bur får ligans snitt för sådana skott).
+    Assist: när en lagkamrat skjuter medan spelaren är på isen kan spelaren få assist om skottet går in.
+    Hur ofta forwards och backar får assist på lagkamraternas mål räknas fram ur säsongen, för sig i
+    powerplay och i övriga lägen. Spelarens egen andel vägs in men dras mot snittet (K assist),
+    så att några få matcher inte avgör. Förväntade assist = lagkamraternas xG på isen × den andelen.
+    """
+    unb = SH[SH["Typ"].isin(UNBLOCKED)].copy()
+    if not len(unb) or unb["xG"].notna().sum() == 0:
+        return pd.DataFrame()
+    en = unb["Tom bur"] == 1
+    r_en = unb.loc[en, "Mål"].mean() if en.sum() >= 20 else 0.4
+    snitt = unb.loc[~en, "xG"].mean()
+    unb["_x"] = np.where(en, r_en, unb["xG"].fillna(snitt))
+    unb["_sit"] = np.where(unb["Egna utespelare"] > unb["Motståndarens utespelare"], "PP", "ÖV")
+    grupp = dict(zip(P["Spelar-id"], P["Positionsgrupp"]))
+
+    egen_x = defaultdict(float)
+    tx, tg, ta = defaultdict(float), defaultdict(float), defaultdict(float)
+    gm, ga_ = defaultdict(float), defaultdict(float)
+    for rec in unb[["Skytt-id", "_for", "_x", "_sit", "Mål", "Assist 1-id", "Assist 2-id"]].itertuples(index=False):
+        skytt, pa, v, sit, mal, a1, a2 = rec
+        if skytt and not (isinstance(skytt, float) and math.isnan(skytt)):
+            egen_x[int(skytt)] += v
+        assist = {int(a) for a in (a1, a2) if a is not None and not (isinstance(a, float) and math.isnan(a))}
+        for q in pa or []:
+            if q == skytt:
+                continue
+            tx[(q, sit)] += v
+            if mal:
+                g = grupp.get(q, "Forward")
+                tg[(q, sit)] += 1
+                gm[(g, sit)] += 1
+                if q in assist:
+                    ta[q] += 1
+                    ga_[(g, sit)] += 1
+    rate = {k: ga_[k] / gm[k] for k in gm if gm[k] > 0}
+    snittandel = {"Forward": 0.45, "Back": 0.35}
+    rows = []
+    for pid in P["Spelar-id"].unique():
+        g = grupp.get(pid, "Forward")
+        bas = sum(rate.get((g, s_), snittandel.get(g, 0.4)) * tx[(pid, s_)] for s_ in ("PP", "ÖV"))
+        vant = sum(rate.get((g, s_), snittandel.get(g, 0.4)) * tg[(pid, s_)] for s_ in ("PP", "ÖV"))
+        faktor = (ta[pid] + K) / (vant + K)
+        xa = bas * faktor
+        rows.append({"Spelar-id": pid, "Förväntade mål": round(egen_x[int(pid)], 2), "Förväntade assist": round(xa, 2)})
+    X = pd.DataFrame(rows)
+    X["Förväntade poäng"] = (X["Förväntade mål"] + X["Förväntade assist"]).round(2)
+    return X
+
+
 def season_tables(per_game: pd.DataFrame, goalies: pd.DataFrame, teams: pd.DataFrame):
     sum_cols = [c for c in per_game.columns if c in blank_skater() or c in ("Poäng", "Game Score", "Game Score+", "Istid (min)",
                                                                              "Istid 5v5 (min)", "Istid PP (min)",
@@ -899,6 +970,7 @@ ABOUT = [
     ("GF / GA", "Mål för och mot medan spelaren var på isen vid 5 mot 5."),
     ("xG", "Egen modell (logistisk regression) tränad på säsongens oblockerade skott: avstånd, vinkel, skottyp, retur, rush och numerärt läge. Skott mot tom bur ingår inte."),
     ("ixG / xGF / xGA", "ixG = spelarens egna förväntade mål. xGF/xGA = förväntade mål för/mot på isen vid 5 mot 5."),
+    ("Förväntade poäng", "Förväntade mål + förväntade assist. Förväntade mål = xG för spelarens egna skott. Förväntade assist = lagkamraternas xG när spelaren är på isen × hur ofta en forward/back får assist på ett sådant mål (räknat ur säsongen, för sig i powerplay), justerat mot spelarens egen andel. Poäng över förväntan under noll betyder att spelaren borde ha fler poäng än han har."),
     ("GSAx", "Räddade mål över förväntan för målvakter: xG mot minus insläppta på samma skott. Plus är bra."),
     ("Istid", "Räknad från NHL:s byteslistor. 5v5 = båda lagen fem utespelare och målvakt. PP/SH = numerärt över-/underläge."),
     ("Resultat", "V = vinst, F = förlust i ordinarie tid, FÖ = förlust efter förlängning eller straffar (ger 1 poäng)."),
@@ -997,14 +1069,15 @@ def main(argv=None):
         log("Inga färdigspelade matcher ännu.")
         return
 
-    per_game, goalies, teams, shots, problems = [], [], [], [], []
+    per_game, goalies, teams, shots, problems, shootout = [], [], [], [], [], []
     for i, g in enumerate(done, 1):
         try:
             pbp, box, shifts = fetch_game(f, g)
             if not pbp:
                 problems.append(f"Match {g['id']}: ingen play-by-play")
                 continue
-            r, gr, tr, sh, checks = parse_game(g, pbp, box, shifts)
+            r, gr, tr, sh, checks, so = parse_game(g, pbp, box, shifts)
+            shootout += so
             per_game += r
             goalies += gr
             teams += tr
@@ -1111,6 +1184,14 @@ def main(argv=None):
     if G is not None:
         G.insert(G.columns.get_loc("Lag") + 1, "Rookie", G["Spelar-id"].map(ja_nej))
     log(f"  {int((S['Rookie'] == 'ja').sum())} rookies bland utespelarna.")
+    if model is not None:
+        X = expected_points(SH, P)
+        if len(X):
+            S = S.merge(X, on="Spelar-id", how="left")
+            S["Mål över förväntan"] = (S["Mål"] - S["Förväntade mål"]).round(2)
+            S["Assist över förväntan"] = (S["Assist"] - S["Förväntade assist"]).round(2)
+            S["Poäng över förväntan"] = (S["Poäng"] - S["Förväntade poäng"]).round(2)
+            log(f"  Förväntade poäng: {S['Förväntade poäng'].sum():.0f} mot {S['Poäng'].sum():.0f} gjorda.")
 
     matches = T[T["Hemma/borta"] == "Hemma"][["Match-id", "Datum", "Motståndare", "Lag", "Mål mot", "Mål för", "Avgjord i",
                                               "Skott mot", "Skott", "Lagets Game Score", "Lagets Game Score+"]].copy()
@@ -1144,7 +1225,7 @@ def main(argv=None):
 
     tables = {"Spelare": S, "Målvakter": G, "Lag": L, "Vinstchans": komm, "Per match": per_game_out,
               "Målvakter per match": GK, "Lag per match": T_out, "Matcher": matches, "Prognoser": progn,
-              "Skott": shots_out}
+              "Skott": shots_out, "Straffläggningar": pd.DataFrame(shootout)}
 
     if a.edge:
         log("Hämtar NHL Edge-data …")

@@ -5,7 +5,7 @@
   var MAN_K = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
   var DAG = ['söndag', 'måndag', 'tisdag', 'onsdag', 'torsdag', 'fredag', 'lördag'];
   var MIN = 3;
-  var PAGES = ['oversikt', 'vinstchans', 'matcher', 'spelare', 'lag', 'malvakter', 'om'];
+  var PAGES = ['oversikt', 'vinstchans', 'matcher', 'spelare', 'lag', 'malvakter', 'tur', 'om'];
   var GS_PAGES = { oversikt: 1, matcher: 1, spelare: 1, lag: 1, malvakter: 1 };
 
   var FARG = window.LAGFARG || {};
@@ -15,6 +15,7 @@
   var page = 'oversikt';
   var state = { lag: '', pos: '', min: MIN, rookie: false, q: '', sort: 'avg' };
   var mvState = { min: 1, rookie: false };
+  var turState = { min: MIN, rookie: false, pos: '', vy: 'otur' };
 
   // ---------- små hjälpare ----------
   function $(s) { return document.querySelector(s); }
@@ -96,6 +97,12 @@
     z.style.left = x(0) + '%';
     box.appendChild(i); box.appendChild(z); c.appendChild(box); tr.appendChild(c);
   }
+  function spelarLank(p) {
+    var a = el('a', 'sp-lank', p.n);
+    a.href = 'spelare.html?id=' + p.id;
+    if (p.rook) { var r = el('span', 'rookie', 'R'); r.title = 'Rookie'; a.appendChild(r); }
+    return a;
+  }
   function domain(vals) {
     var lo = 0, hi = 0.5;
     vals.forEach(function (v) { if (v < lo) lo = v; if (v > hi) hi = v; });
@@ -133,7 +140,7 @@
     page = p;
     PAGES.forEach(function (x) { document.getElementById(x).hidden = x !== p; });
     document.querySelectorAll('.nav a, .tabbar a').forEach(function (a) {
-      if (a.dataset.page === p || a.dataset.also === p) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+      if (a.dataset.page === p || (a.dataset.also || '').split(' ').indexOf(p) >= 0) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     var om = $('.site-om');
     if (p === 'om') om.setAttribute('aria-current', 'page'); else om.removeAttribute('aria-current');
@@ -173,6 +180,17 @@
   });
   $('#f-min').addEventListener('input', function (e) { state.min = +e.target.value; drawPlayers(); });
   $('#f-rookie').addEventListener('change', function (e) { state.rookie = e.target.checked; drawPlayers(); });
+  $('#t-min').addEventListener('input', function (e) { turState.min = +e.target.value; drawTur(); });
+  $('#t-rookie').addEventListener('change', function (e) { turState.rookie = e.target.checked; drawTur(); });
+  [['#t-vy', 'vy'], ['#t-pos', 'pos']].forEach(function (x) {
+    document.querySelectorAll(x[0] + ' button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        turState[x[1]] = b.dataset[x[1]];
+        document.querySelectorAll(x[0] + ' button').forEach(function (y) { y.setAttribute('aria-pressed', String(y === b)); });
+        drawTur();
+      });
+    });
+  });
   $('#g-min').addEventListener('input', function (e) { mvState.min = +e.target.value; drawGoalies(); });
   $('#g-rookie').addEventListener('change', function (e) { mvState.rookie = e.target.checked; drawGoalies(); });
   $('#f-q').addEventListener('input', function (e) { state.q = e.target.value.trim().toLowerCase(); drawPlayers(); });
@@ -450,8 +468,7 @@
     list.forEach(function (p, i) {
       var tr = el('tr');
       td(tr, String(i + 1), 'rk');
-      var namn = el('span', null, p.n);
-      if (p.rook) { var r = el('span', 'rookie', 'R'); r.title = 'Rookie'; namn.appendChild(r); }
+      var namn = spelarLank(p);
       td(tr, namn, 'nm');
       td(tr, team(p.k, 22), 'm hn');
       td(tr, p.pos, 'm hn');
@@ -528,8 +545,7 @@
     list.forEach(function (p, i) {
       var tr = el('tr');
       td(tr, String(i + 1), 'rk');
-      var namn = el('span', null, p.n);
-      if (p.rook) { var r = el('span', 'rookie', 'R'); r.title = 'Rookie'; namn.appendChild(r); }
+      var namn = spelarLank(p);
       td(tr, namn, 'nm');
       td(tr, team(p.k, 22), 'm hn');
       td(tr, String(p.gp), 'n');
@@ -543,12 +559,44 @@
     $('#c-mv').textContent = list.length ? list.length + (list.length === 1 ? (mvState.rookie ? ' rookie' : ' målvakt') : (mvState.rookie ? ' rookies' : ' målvakter')) : '';
   }
 
+  // ---------- Tur & otur ----------
+  function drawTur() {
+    matcherReglage(D.spelare, turState, 't');
+    var harX = D.spelare.some(function (p) { return p.xp != null; });
+    var list = D.spelare.filter(function (p) {
+      return p.xp != null && p.gp >= turState.min && (!turState.pos || p.pos === turState.pos) && (!turState.rookie || p.rook);
+    });
+    list.forEach(function (p) { p._d = p.p - p.xp; });
+    list.sort(function (a, b) { return turState.vy === 'otur' ? a._d - b._d : b._d - a._d; });
+    var lo = Math.min.apply(null, [-1].concat(list.map(function (p) { return p._d; })));
+    var hi = Math.max.apply(null, [1].concat(list.map(function (p) { return p._d; })));
+    var m = Math.max(-lo, hi);
+    var tb = $('#t-tur tbody'); tb.textContent = '';
+    list.forEach(function (p, i) {
+      var tr = el('tr');
+      td(tr, String(i + 1), 'rk');
+      td(tr, spelarLank(p), 'nm');
+      td(tr, team(p.k, 22), 'm hn');
+      td(tr, String(p.gp), 'n hn');
+      td(tr, String(p.p), 'n');
+      td(tr, f1(p.xp), 'n m');
+      barCell(tr, p._d, -m, m, p._d < 0 ? 'var(--bra)' : 'var(--svag)', 'hn');
+      td(tr, (p._d > 0 ? '+' : '') + f1(p._d), 'n val');
+      td(tr, p.g + ' / ' + f1(p.xg), 'n m hn');
+      td(tr, p.a + ' / ' + f1(p.xa), 'n m hn');
+      tb.appendChild(tr);
+    });
+    if (!list.length) emptyRow(tb, 10, harX ? 'Inga spelare matchar filtret.' : 'Förväntade poäng räknas när tillräckligt många matcher spelats.');
+    $('#c-tur').textContent = list.length ? list.length + ' spelare' : '';
+  }
+
   function draw() {
     if (!D) return;
     if (page === 'oversikt') drawOversikt();
     else if (page === 'vinstchans') drawVinstchans();
     else if (page === 'matcher') drawMatcher();
     else if (page === 'spelare') drawPlayers();
+    else if (page === 'tur') drawTur();
     else if (page === 'lag') drawTeams();
     else if (page === 'malvakter') drawGoalies();
   }

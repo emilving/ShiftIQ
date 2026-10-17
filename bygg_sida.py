@@ -79,6 +79,79 @@ def now_text():
     return f"{t.day} {MAN[t.month - 1]} {t.year} kl. {t:%H.%M}"
 
 
+def val(v):
+    """Tal till JSON: heltal som heltal, annars två decimaler, saknas = None."""
+    try:
+        if v is None or pd.isna(v):
+            return None
+    except (TypeError, ValueError):
+        return v
+    f = float(v)
+    return int(f) if f.is_integer() else round(f, 3)
+
+
+# Grupper på spelarsidan: (rubrik, [(etikett, kolumn, typ)]). typ: n = tal, p = andel som procent, m = minuter/match
+SPELARGRUPPER = [
+    ("Poäng", [("Matcher", "Matcher", "n"), ("Mål", "Mål", "n"), ("Assist", "Assist", "n"), ("Poäng", "Poäng", "n"),
+               ("Primära assist", "Primära assist", "n"), ("Sekundära assist", "Sekundära assist", "n"),
+               ("Powerplaypoäng", "PP-poäng", "n"), ("Powerplaymål", "PP-mål", "n"), ("Boxplaypoäng", "SH-poäng", "n"),
+               ("Mål i tom bur", "Mål i tom bur", "n"), ("Plus/minus", "Plus/minus", "n"), ("Poäng/60 min", "Poäng/60", "n")]),
+    ("Förväntat", [("Förväntade mål", "Förväntade mål", "n"), ("Förväntade assist", "Förväntade assist", "n"),
+                   ("Förväntade poäng", "Förväntade poäng", "n"), ("Mål över förväntan", "Mål över förväntan", "n"),
+                   ("Assist över förväntan", "Assist över förväntan", "n"), ("Poäng över förväntan", "Poäng över förväntan", "n")]),
+    ("Skott", [("Skott på mål", "Skott", "n"), ("Skottförsök", "Skottförsök", "n"), ("Skott utanför", "Missade skott", "n"),
+               ("Skott blockerade", "Egna skott blockerade", "n"), ("Skottprocent", "Skott-%", "p"),
+               ("Skott/60 min", "Skott/60", "n"), ("Mål/60 min", "Mål/60", "n"), ("ixG (utan tom bur)", "ixG", "n")]),
+    ("Istid per match", [("Totalt", "Istid/match", "t"), ("5 mot 5", "Istid 5v5 (min)", "m"),
+                         ("Powerplay", "Istid PP (min)", "m"), ("Boxplay", "Istid SH (min)", "m")]),
+    ("På isen vid 5 mot 5", [("Skottförsök för", "CF 5v5", "n"), ("Skottförsök mot", "CA 5v5", "n"), ("Andel skottförsök", "CF% 5v5", "p"),
+                             ("Mål för", "GF 5v5", "n"), ("Mål mot", "GA 5v5", "n"), ("Andel mål", "GF% 5v5", "p"),
+                             ("xG för", "xGF 5v5", "n"), ("xG mot", "xGA 5v5", "n"), ("Andel xG", "xGF% 5v5", "p")]),
+    ("Fysiskt och tekningar", [("Tacklingar", "Träffar", "n"), ("Blev tacklad", "Tacklad", "n"), ("Blockerade skott", "Blockeringar", "n"),
+                               ("Puckvinster", "Puckvinster", "n"), ("Puckförluster", "Puckförluster", "n"),
+                               ("Vunna tekningar", "Vunna tekningar", "n"), ("Förlorade tekningar", "Förlorade tekningar", "n"),
+                               ("Tekningsprocent", "Tekning-%", "p")]),
+    ("Utvisningar", [("Tagna", "Tagna utvisningar", "n"), ("Dragna", "Dragna utvisningar", "n"),
+                     ("Netto", "Utvisningsnetto", "n"), ("Utvisningsminuter", "Utvisningsminuter", "n")]),
+    ("Game Score", [("Game Score+ snitt", "Game Score+ snitt", "n"), ("Game Score+ bästa", "Game Score+ bästa", "n"),
+                    ("Game Score+ sämsta", "Game Score+ sämsta", "n"), ("Game Score+ summa", "Game Score+", "n"),
+                    ("Game Score snitt", "Game Score snitt", "n"), ("Game Score summa", "Game Score", "n")]),
+]
+MVGRUPPER = [
+    ("Matcher", [("Matcher", "Matcher", "n"), ("Starter", "Starter", "n"), ("Vinster", "Vinster", "n"), ("Istid totalt (min)", "Istid (min)", "n")]),
+    ("Räddningar", [("Skott mot", "Skott mot", "n"), ("Räddningar", "Räddningar", "n"), ("Insläppta", "Insläppta", "n"),
+                    ("Räddningsprocent", "Räddnings-%", "p"), ("Räddningsprocent 5 mot 5", "Räddnings-% 5v5", "p"),
+                    ("Insläppta/60 min", "Insläppta/60", "n")]),
+    ("Förväntat", [("xG mot", "xG mot", "n"), ("Insläppta på de skotten", "Insläppta (xG-skott)", "n"),
+                   ("Räddade mål över förväntan (GSAx)", "GSAx", "n")]),
+    ("Game Score", [("Game Score+ summa", "Game Score+", "n"), ("Game Score snitt", "Game Score snitt", "n"), ("Game Score summa", "Game Score", "n")]),
+]
+
+
+def grupper(r, defs):
+    ut = []
+    for rubrik, rader in defs:
+        rr = []
+        for etikett, kol, typ in rader:
+            if kol not in r.index or val(r[kol]) is None:
+                continue
+            v = float(r[kol])
+            if typ == "m":
+                v = v / max(1, float(r.get("Matcher", 1)))
+            rr.append([etikett, round(v, 3), typ])
+        if rr:
+            ut.append({"t": rubrik, "r": rr})
+    return ut
+
+
+def load_build(csv_dir: Path, name: str, cols=None):
+    p = csv_dir / f"{name}.csv"
+    if not p.exists():
+        return pd.DataFrame()
+    df = pd.read_csv(p, encoding="utf-8-sig", usecols=lambda c: cols is None or c in cols)
+    return df
+
+
 def build_data(csv_dir: Path, season: str, cfg: dict):
     P = load(csv_dir, "Per match")
     GK = load(csv_dir, "Målvakter per match")
@@ -114,6 +187,7 @@ def build_data(csv_dir: Path, season: str, cfg: dict):
         "gs": num(r["Game Score snitt"]), "gsS": num(r["Game Score"]),
         "pl": num(r.get("Game Score+ snitt")), "plS": num(r.get("Game Score+")),
         "toi": num(r.get("Istid/match"), 1), "rook": 1 if r.get("Rookie") == "ja" else 0,
+        "xg": num(r.get("Förväntade mål")), "xa": num(r.get("Förväntade assist")), "xp": num(r.get("Förväntade poäng")),
     } for _, r in S.iterrows()]
 
     mv = [{
@@ -140,6 +214,61 @@ def build_data(csv_dir: Path, season: str, cfg: dict):
         for v in lag_info.values():
             v["logo"] = ""
 
+    SK = load_build(csv_dir, "Skott", {"Match-id", "Typ", "Period", "Tid", "Lag", "Skytt-id", "Skytt", "Mål", "Tom bur",
+                                       "Läge (kort)", "Assist 1-id", "Assist 1", "Assist 2-id", "Assist 2", "Mål i säsongen",
+                                       "Assist 1 i säsongen", "Assist 2 i säsongen"})
+    goals = SK[SK["Mål"] == 1] if not SK.empty else SK
+    SO = load(csv_dir, "Straffläggningar")
+
+    def rapport(gid, bort, hemma):
+        """Alla mål, lagstatistik och spelarstatistik för en match."""
+        mal, bs, hs_ = [], 0, 0
+        g = goals[goals["Match-id"] == gid] if len(goals) else goals
+        if len(g):
+            g = g.assign(_s=g["Tid"].astype(str).str.split(":").map(lambda x: int(x[0]) * 60 + int(x[1]) if len(x) == 2 else 0))
+            g = g.sort_values(["Period", "_s"])
+        for _, r in g.iterrows():
+            if r["Lag"] == bort:
+                bs += 1
+            else:
+                hs_ += 1
+            lage = "TB" if r.get("Tom bur") == 1 else ("" if r.get("Läge (kort)") == "EV" else r.get("Läge (kort)", ""))
+            ass = [[x, val(r.get(f"{x} i säsongen")), val(r.get(f"{x}-id"))] for x in ("Assist 1", "Assist 2")]
+            mal.append({"per": val(r["Period"]), "tid": r["Tid"], "k": abbr.get(r["Lag"], ""),
+                        "n": r["Skytt"], "id": val(r.get("Skytt-id")), "tot": val(r.get("Mål i säsongen")),
+                        "a": [[r[a[0]], a[1], a[2]] for a in ass if isinstance(r.get(a[0]), str) and r.get(a[0])],
+                        "lage": lage or "", "st": [bs, hs_]})
+        straff = []
+        if not SO.empty:
+            for _, r in SO[SO["Match-id"] == gid].sort_values("Ordning").iterrows():
+                straff.append({"k": r["Lagförkortning"], "n": r["Skytt"], "id": val(r.get("Skytt-id")), "mal": int(r["Mål"])})
+        lagstat = {}
+        for key, namn in (("b", bort), ("h", hemma)):
+            t = T[(T["Match-id"] == gid) & (T["Lag"] == namn)]
+            if not len(t):
+                continue
+            t = t.iloc[0]
+            lagstat[key] = {c: val(t.get(c)) for c in ("Skott", "xGF", "Skottförsök", "Vunna tekningar", "Förlorade tekningar", "Träffar",
+                                                       "Blockeringar", "Utvisningsminuter", "Utvisningar", "PP-mål")}
+        spel, mvs = {}, {}
+        pm = P[P["Match-id"] == gid]
+        gm = GK[GK["Match-id"] == gid] if not GK.empty else GK
+        for key, namn in (("b", bort), ("h", hemma)):
+            rows_ = pm[pm["Lag"] == namn].sort_values(["Poäng", "Mål", "Game Score+" if "Game Score+" in pm else "Game Score"], ascending=False)
+            spel[key] = [{"id": val(r["Spelar-id"]), "nr": val(r.get("Nummer")), "n": r["Spelare"], "pos": pos_code(r.get("Positionsgrupp", "")),
+                          "g": val(r["Mål"]), "a": val(r["Assist"]), "p": val(r["Poäng"]), "pm": val(r.get("Plus/minus")),
+                          "s": val(r["Skott"]), "xg": num(r.get("ixG")), "hit": val(r.get("Träffar")), "blk": val(r.get("Blockeringar")),
+                          "fo": [val(r.get("Vunna tekningar")), val(r.get("Förlorade tekningar"))], "pim": val(r.get("Utvisningsminuter")),
+                          "toi": num(r.get("Istid (min)")), "gs": num(r.get("Game Score")), "pl": num(r.get("Game Score+"))}
+                         for _, r in rows_.iterrows()]
+            if len(gm):
+                mvs[key] = [{"id": val(r["Spelar-id"]), "nr": val(r.get("Nummer")), "n": r["Spelare"], "sa": val(r.get("Skott mot")),
+                             "sv": val(r.get("Räddningar")), "ga": val(r.get("Insläppta")), "svp": num(r.get("Räddnings-%"), 3),
+                             "gsax": num(r.get("GSAx")), "toi": num(r.get("Istid (min)")), "bes": r.get("Beslut") if isinstance(r.get("Beslut"), str) else "",
+                             "gs": num(r.get("Game Score")), "pl": num(r.get("Game Score+"))}
+                            for _, r in gm[gm["Lag"] == namn].sort_values("Istid (min)", ascending=False).iterrows()]
+        return {"mal": mal, "straff": straff, "lag": lagstat, "spelare": spel, "mv": mvs}
+
     pre = {}
     for _, r in PR.iterrows():
         pre[int(r["Match-id"])] = {"b": num(r["Chans borta"], 3), "h": num(r["Chans hemma"], 3)}
@@ -162,13 +291,13 @@ def build_data(csv_dir: Path, season: str, cfg: dict):
         def side(team, short, goals):
             r = rows[rows["Lag"] == team]
             return {"n": team, "k": short, "m": goals, "logo": lag_info.get(short, {}).get("logo", ""),
-                    "spelare": [[pos_code(x["Position"]), x["Spelare"], num(x["Game Score"]), num(x.get("Game Score+"))]
+                    "spelare": [[pos_code(x["Position"]), x["Spelare"], num(x["Game Score"]), num(x.get("Game Score+")), val(x["Spelar-id"])]
                                 for _, x in r.iterrows()]}
         cards[gid] = {"id": gid, "d": m["Datum"], "datumText": datum_text(m["Datum"]), "avg": m["Avgjord i"],
                       "b": side(m["Bortalag"], m["Bortalag kort"], integer(m["Bortamål"])),
                       "h": side(m["Hemmalag"], m["Hemmalag kort"], integer(m["Hemmamål"])),
                       "plus": bool(has_plus), "namn": cfg.get("namn", ""), "sajt": cfg.get("sajtnamn", "Slotline"),
-                      "png": False}
+                      "png": False, "rapport": rapport(gid, m["Bortalag"], m["Hemmalag"])}
 
     def top(col, asc):
         sub = ins[ins[col].notna()] if col in ins else ins.iloc[0:0]
@@ -225,12 +354,40 @@ def build_data(csv_dir: Path, season: str, cfg: dict):
                  "pl": {"bast": top("Game Score+", False), "samst": top("Game Score+", True)}},
         "vinnare": {"gs": winner_share("Game Score"), "pl": winner_share("Game Score+")},
     }
-    return data, cards
+    # en fil per spelare: all säsongsstatistik och matchlogg
+    sidor = {}
+    for _, r in S.iterrows():
+        pid = int(r["Spelar-id"])
+        logg = P[P["Spelar-id"] == pid].sort_values("Datum")
+        sidor[pid] = {"id": pid, "n": r["Spelare"], "lag": r["Lag"], "k": abbr.get(r["Lag"], ""), "pos": r.get("Position", ""),
+                      "mv": False, "rook": r.get("Rookie") == "ja", "grupper": grupper(r, SPELARGRUPPER),
+                      "logg": [{"id": int(x["Match-id"]), "d": x["Datum"], "mot": abbr.get(x["Motståndare"], ""), "hemma": x["Hemma/borta"] == "Hemma",
+                                "res": x["Resultat"], "st": [val(x["Mål för"]), val(x["Mål mot"])], "g": val(x["Mål"]), "a": val(x["Assist"]),
+                                "p": val(x["Poäng"]), "s": val(x["Skott"]), "pm": val(x.get("Plus/minus")), "toi": num(x.get("Istid (min)")),
+                                "gs": num(x.get("Game Score")), "pl": num(x.get("Game Score+"))} for _, x in logg.iterrows()]}
+    for _, r in (G.iterrows() if not G.empty else []):
+        pid = int(r["Spelar-id"])
+        logg = GK[GK["Spelar-id"] == pid].sort_values("Datum")
+        sidor[pid] = {"id": pid, "n": r["Spelare"], "lag": r["Lag"], "k": abbr.get(r["Lag"], ""), "pos": "Målvakt",
+                      "mv": True, "rook": r.get("Rookie") == "ja", "grupper": grupper(r, MVGRUPPER),
+                      "logg": [{"id": int(x["Match-id"]), "d": x["Datum"], "mot": abbr.get(x["Motståndare"], ""), "hemma": x["Hemma/borta"] == "Hemma",
+                                "res": x["Resultat"], "st": [val(x["Mål för"]), val(x["Mål mot"])], "sa": val(x.get("Skott mot")),
+                                "sv": val(x.get("Räddningar")), "ga": val(x.get("Insläppta")), "svp": num(x.get("Räddnings-%"), 3),
+                                "gsax": num(x.get("GSAx")), "toi": num(x.get("Istid (min)")), "bes": x.get("Beslut") if isinstance(x.get("Beslut"), str) else "",
+                                "gs": num(x.get("Game Score")), "pl": num(x.get("Game Score+"))} for _, x in logg.iterrows()]}
+    for v in sidor.values():
+        v["logo"] = lag_info.get(v["k"], {}).get("logo", "")
+        v["sajt"] = cfg.get("sajtnamn", "Slotline")
+        v["plus"] = bool(has_plus)
+    return data, cards, sidor
 
 
 def card_hash(card):
     c = dict(card)
     c.pop("png", None)
+    c.pop("rapport", None)
+    c["b"] = dict(c["b"], spelare=[x[:4] for x in c["b"]["spelare"]])
+    c["h"] = dict(c["h"], spelare=[x[:4] for x in c["h"]["spelare"]])
     return hashlib.sha1(json.dumps(c, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
 
 
@@ -310,7 +467,10 @@ def main(argv=None):
     (site / ".nojekyll").write_text("")
     (site / "data" / "matcher").mkdir(parents=True, exist_ok=True)
 
-    data, cards = build_data(data_root / "csv", a.sasong, cfg)
+    data, cards, sidor = build_data(data_root / "csv", a.sasong, cfg)
+    (site / "data" / "spelare").mkdir(parents=True, exist_ok=True)
+    for pid, sp in sidor.items():
+        (site / "data" / "spelare" / f"{pid}.json").write_text(json.dumps(sp, ensure_ascii=False, allow_nan=False), encoding="utf-8")
     for x in sorted(data_root.glob("*.xlsx"), key=lambda p: p.stat().st_mtime)[-1:]:
         shutil.copy2(x, site / "data" / x.name)
         data["excel"] = f"data/{x.name}"

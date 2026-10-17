@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spelare – Slotline</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 24'%3E%3Crect x='1' y='2' width='17' height='5' rx='2.5' fill='%2386A7D2'/%3E%3Crect x='9.5' y='9.5' width='17' height='5' rx='2.5' fill='%234677BA'/%3E%3Crect x='18' y='17' width='17' height='5' rx='2.5' fill='%231B4A8A'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700;800&family=Saira+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site">
+  <div class="site-in">
+    <a class="brand" href="./">
+      <svg class="brand-mark" viewBox="0 0 36 24" aria-hidden="true"><rect x="1" y="2" width="17" height="5" rx="2.5" fill="#86A7D2"/><rect x="9.5" y="9.5" width="17" height="5" rx="2.5" fill="#4C9BE8"/><rect x="18" y="17" width="17" height="5" rx="2.5" fill="#FFFFFF"/></svg>
+      <span class="brand-name" id="brand-name">Slot<span class="accent">line</span></span>
+    </a>
+    <a class="sp-tillbaka" id="tillbaka" href="./#spelare">Alla spelare</a>
+  </div>
+</header>
+<main class="wrap sp-sida">
+  <div class="sp-head">
+    <span id="sp-logo"></span>
+    <div>
+      <h1 id="sp-namn">Laddar …</h1>
+      <div class="sp-sub" id="sp-sub"></div>
+    </div>
+  </div>
+  <div class="sp-tiles" id="sp-tiles"></div>
+  <p class="sp-tur" id="sp-tur" hidden></p>
+  <h2 class="sp-h">Säsongen</h2>
+  <div class="sp-grupper" id="sp-grupper"></div>
+  <h2 class="sp-h">Match för match</h2>
+  <p class="note">Tryck på en match för att se matchrapporten.</p>
+  <div class="box short">
+    <table class="rows" id="sp-logg"><thead></thead><tbody></tbody></table>
+  </div>
+</main>
+<script src="lagfarger.js"></script>
+<script src="spelare.js"></script>
+</body>
+</html>

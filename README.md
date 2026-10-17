@@ -10,6 +10,9 @@ Allt körs gratis på GitHub. Du behöver inte ha datorn igång.
 - **Vinstchans:** chansen att vinna för veckans matcher, en jämförelse av lagen och hur bra modellen har träffat hittills.
 - **Matcher:** alla resultat med matchkort. Varje kort finns som bild att ladda ner och lägga upp (1080 × 1350).
 - **Spelare, Tabell och Målvakter** med lagens loggor, filter och sortering.
+- **Matchrapport** för varje match: alla mål med assist, lagens statistik och hela statistiken för alla spelare.
+- **Spelarsidor** med all säsongsstatistik och match för match. Tryck på en spelare var som helst på sidan.
+- **Tur & otur:** förväntade poäng visar vilka spelare som borde ha fler poäng än de har, och vilka som haft flyt.
 - **Excel-fil** med all statistik, en flik per tabell.
 - **Anpassad för mobil och dator:**
   - På mobil finns en menyrad med ikoner längst ner, och korten sveps i sidled.
@@ -69,6 +72,15 @@ Modellen (`vinstchans.py`) räknar fram varje lags anfall och försvar ur säson
 - **Chansen:** räknas med Poissonfördelning, där förlängning och straffar ingår.
 
 Sidan visar också hur modellen hade tippat varje spelad match, räknat bara på matcherna innan, så att man kan se hur bra den träffar.
+
+## Förväntade poäng
+
+Förväntade poäng = förväntade mål + förväntade assist.
+
+- **Förväntade mål:** summan av xG för spelarens egna skott. Skott mot tom bur får ligans snitt för sådana skott.
+- **Förväntade assist:** lagkamraternas xG när spelaren är på isen, gånger hur ofta en forward eller back får assist på ett sådant mål. Andelen räknas ur säsongen, för sig i powerplay. Spelarens egen andel vägs in men dras mot snittet, så att några få matcher inte avgör.
+
+Har en spelare färre poäng än förväntat har han haft otur, och brukar komma ikapp.
 
 ## Filerna
 

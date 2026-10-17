@@ -28,6 +28,7 @@
       <a href="#matcher" data-page="matcher">Matcher</a>
       <a href="#spelare" data-page="spelare">Spelare</a>
       <a href="#malvakter" data-page="malvakter">Målvakter</a>
+      <a href="#tur" data-page="tur">Tur &amp; otur</a>
       <a href="#lag" data-page="lag">Tabell</a>
       <a href="#om" data-page="om">Om</a>
     </div>
@@ -37,7 +38,7 @@
   <a href="#oversikt" data-page="oversikt"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Översikt</span></a>
   <a href="#vinstchans" data-page="vinstchans"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 5 5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/></svg><span>Vinstchans</span></a>
   <a href="#matcher" data-page="matcher"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg><span>Matcher</span></a>
-  <a href="#spelare" data-page="spelare" data-also="malvakter"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Spelare</span></a>
+  <a href="#spelare" data-page="spelare" data-also="malvakter tur"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Spelare</span></a>
   <a href="#lag" data-page="lag"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4 6h1M4 12h1M4 18h1"/></svg><span>Tabell</span></a>
 </nav>
 
@@ -137,7 +138,7 @@
   <section class="page" id="spelare" hidden>
     <div class="page-head">
       <h1>Spelare</h1>
-      <div class="switch" aria-label="Visa"><a href="#spelare" aria-current="page">Utespelare</a><a href="#malvakter">Målvakter</a></div>
+      <div class="switch" aria-label="Visa"><a href="#spelare" aria-current="page">Utespelare</a><a href="#malvakter">Målvakter</a><a href="#tur">Tur &amp; otur</a></div>
       <p class="lead">Snitt per match. Stapeln visar hur bra spelaren varit, färgen vilken nivå det motsvarar.</p>
     </div>
     <div class="filters">
@@ -193,11 +194,47 @@
     </div>
   </section>
 
+  <!-- ===== Tur & otur ===== -->
+  <section class="page" id="tur" hidden>
+    <div class="page-head">
+      <h1>Tur &amp; otur</h1>
+      <div class="switch" aria-label="Visa"><a href="#spelare">Utespelare</a><a href="#malvakter">Målvakter</a><a href="#tur" aria-current="page">Tur &amp; otur</a></div>
+      <p class="lead">Vem borde ha fler poäng? Förväntade poäng räknas ur chanserna: skotten spelaren själv tagit och lagkamraternas skott när han varit på isen. Den som ligger långt under brukar komma ikapp.</p>
+    </div>
+    <div class="filters">
+      <div class="seg" role="group" aria-label="Visa" id="t-vy">
+        <button type="button" data-vy="otur" aria-pressed="true">Borde ha fler</button>
+        <button type="button" data-vy="tur" aria-pressed="false">Har haft flyt</button>
+      </div>
+      <div class="seg" role="group" aria-label="Position" id="t-pos">
+        <button type="button" data-pos="" aria-pressed="true">Alla</button>
+        <button type="button" data-pos="F" aria-pressed="false">Forwards</button>
+        <button type="button" data-pos="B" aria-pressed="false">Backar</button>
+      </div>
+      <label class="check rookie-val"><input type="checkbox" id="t-rookie"> Bara rookies</label>
+      <label class="matcher-val"><span id="t-min-txt">Minst 3 matcher</span>
+        <input type="range" id="t-min" min="1" max="3" value="3" step="1" aria-label="Minst antal matcher"></label>
+    </div>
+    <div class="box">
+      <table class="rows" id="t-tur">
+        <thead><tr>
+          <th class="rk">#</th><th>Spelare</th><th class="hn">Lag</th><th class="n hn">Matcher</th>
+          <th class="n">Poäng</th><th class="n">Väntat</th>
+          <th class="barc hn"><span class="sr">Stapel</span></th><th class="n">Skillnad</th>
+          <th class="n hn">Mål / väntat</th><th class="n hn">Assist / väntat</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="count" id="c-tur"></div>
+    <p class="note tur-not">Skillnaden är poäng minus förväntade poäng. Förväntade mål är summan av xG för spelarens egna skott. Förväntade assist är lagkamraternas xG när spelaren är på isen, gånger hur ofta en forward eller back brukar få assist på ett sådant mål. Spelarens egen andel vägs in men dras mot snittet, så att några få matcher inte avgör.</p>
+  </section>
+
   <!-- ===== Målvakter ===== -->
   <section class="page" id="malvakter" hidden>
     <div class="page-head">
       <h1>Målvakter</h1>
-      <div class="switch" aria-label="Visa"><a href="#spelare">Utespelare</a><a href="#malvakter" aria-current="page">Målvakter</a></div>
+      <div class="switch" aria-label="Visa"><a href="#spelare">Utespelare</a><a href="#malvakter" aria-current="page">Målvakter</a><a href="#tur">Tur &amp; otur</a></div>
       <p class="lead" id="mv-lead"></p>
     </div>
     <div class="filters">

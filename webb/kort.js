@@ -72,6 +72,166 @@
   window.addEventListener('resize', scale);
   if (mobilFraga && mobilFraga.addEventListener) mobilFraga.addEventListener('change', scale);
 
+  // ---------- matchrapport ----------
+  function tid(min) { if (min == null) return '–'; var t = Math.round(min * 60); return Math.floor(t / 60) + ':' + ('0' + (t % 60)).slice(-2); }
+  function periodNamn(n) { return n === 1 ? '1:a perioden' : n === 2 ? '2:a perioden' : n === 3 ? '3:e perioden' : n === 4 ? 'Förlängning' : (n - 3) + ':e förlängningen'; }
+  function spelarLank(namn, pid, extra) {
+    var a = el(pid ? 'a' : 'span', 'sp-lank', namn);
+    if (pid) a.href = 'spelare.html?id=' + pid;
+    if (extra != null) { var e = el('span', 'tot', ' (' + extra + ')'); a.appendChild(e); }
+    return a;
+  }
+  function cell(tr, v, cls) { var c = el('td', cls); if (v instanceof Node) c.appendChild(v); else c.textContent = v == null ? '–' : v; tr.appendChild(c); return c; }
+  function tecken(v) { return v == null ? '–' : v > 0 ? '+' + v : v < 0 ? '−' + Math.abs(v) : '0'; }
+  var LAGE = { PP: 'Powerplay', SH: 'Boxplay', TB: 'Tom bur' };
+
+  function renderRapport() {
+    var R = G.rapport;
+    var box = $('#rapport');
+    if (!R || exportMode) { box.hidden = true; return; }
+    box.hidden = false;
+    var b = G.b, h = G.h, logo = {}; logo[b.k] = b.logo; logo[h.k] = h.logo;
+
+    // Målen
+    var ml = $('#r-mal'); ml.textContent = '';
+    if (!R.mal.length) ml.appendChild(el('div', 'r-tom', 'Inga mål under ordinarie tid eller förlängning.'));
+    var per = null;
+    R.mal.forEach(function (m) {
+      if (m.per !== per) { per = m.per; ml.appendChild(el('div', 'r-per', periodNamn(per))); }
+      var row = el('div', 'r-mal-rad');
+      row.appendChild(el('div', 'r-tid', m.tid));
+      var lag = el('div', 'r-lagk'); lag.appendChild(smallLogo(logo[m.k], 26, m.k)); lag.appendChild(el('span', null, m.k)); row.appendChild(lag);
+      var st = el('div', 'r-st'); st.textContent = m.st[0] + '–' + m.st[1]; row.appendChild(st);
+      var txt = el('div', 'r-txt');
+      var rad1 = el('div', 'r-skytt'); rad1.appendChild(spelarLank(m.n, m.id, m.tot));
+      if (m.lage) rad1.appendChild(el('span', 'r-lage ' + m.lage.toLowerCase(), LAGE[m.lage] || m.lage));
+      txt.appendChild(rad1);
+      var as = el('div', 'r-ass');
+      if (m.a.length) {
+        as.appendChild(document.createTextNode('Assist: '));
+        m.a.forEach(function (a, i) { if (i) as.appendChild(document.createTextNode(', ')); as.appendChild(spelarLank(a[0], a[2], a[1])); });
+      } else as.textContent = 'Utan assist';
+      txt.appendChild(as);
+      row.appendChild(txt);
+      ml.appendChild(row);
+    });
+
+    // Straffar
+    var sf = $('#r-straff'); sf.textContent = '';
+    if (R.straff && R.straff.length) {
+      sf.appendChild(el('h3', null, 'Straffläggning'));
+      var sb = el('div', 'box short r-mal');
+      R.straff.forEach(function (x) {
+        var row = el('div', 'r-mal-rad straff');
+        var lag = el('div', 'r-lagk'); lag.appendChild(smallLogo(logo[x.k], 26, x.k)); lag.appendChild(el('span', null, x.k)); row.appendChild(lag);
+        var t = el('div', 'r-txt'); t.appendChild(spelarLank(x.n, x.id)); row.appendChild(t);
+        row.appendChild(el('div', x.mal ? 'r-sm ja' : 'r-sm', x.mal ? 'Mål' : 'Miss'));
+        sb.appendChild(row);
+      });
+      sf.appendChild(sb);
+    }
+
+    // Lagen
+    var lg = $('#r-lag'); lg.textContent = '';
+    var B = R.lag.b || {}, H = R.lag.h || {};
+    var farger = (function () {
+      var fb = FARG[b.k] || ['#4677BA', '#86A7D2'], fh = FARG[h.k] || ['#1B4A8A', '#86A7D2'];
+      var rgb = function (x) { var n = parseInt(x.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
+      var a = rgb(fb[0]), c = rgb(fh[0]);
+      var d = Math.sqrt(Math.pow(a[0] - c[0], 2) + Math.pow(a[1] - c[1], 2) + Math.pow(a[2] - c[2], 2));
+      return [fb[0], d < 90 ? fh[1] : fh[0]];
+    })();
+    var huvud = el('div', 'r-cmp-h');
+    [b, h].forEach(function (t, i) {
+      var c = el('div', i ? 'h' : 'b'); c.appendChild(smallLogo(t.logo, 26, t.k)); c.appendChild(el('span', null, t.k)); huvud.appendChild(c);
+      if (!i) huvud.appendChild(el('div'));
+    });
+    lg.appendChild(huvud);
+    function fo(t) { var n = (t['Vunna tekningar'] || 0) + (t['Förlorade tekningar'] || 0); return n ? Math.round(100 * t['Vunna tekningar'] / n) : null; }
+    var rader = [
+      ['Skott på mål', B['Skott'], H['Skott']],
+      ['Förväntade mål (xG)', B['xGF'], H['xGF'], 2],
+      ['Skottförsök', B['Skottförsök'], H['Skottförsök']],
+      ['Tekningar, %', fo(B), fo(H)],
+      ['Powerplaymål', B['PP-mål'], H['PP-mål'], 0, (B['PP-mål'] || 0) + ' av ' + (H['Utvisningar'] || 0), (H['PP-mål'] || 0) + ' av ' + (B['Utvisningar'] || 0)],
+      ['Tacklingar', B['Träffar'], H['Träffar']],
+      ['Blockerade skott', B['Blockeringar'], H['Blockeringar']],
+      ['Utvisningsminuter', B['Utvisningsminuter'], H['Utvisningsminuter']]
+    ];
+    rader.forEach(function (r) {
+      if (r[1] == null && r[2] == null) return;
+      var a = r[1] || 0, c = r[2] || 0, sum = a + c;
+      var row = el('div', 'r-cmp');
+      var vt = function (v, txt) { return txt || (r[3] ? (+v).toFixed(r[3]) : String(v)); };
+      row.appendChild(el('div', 'v b' + (a > c ? ' mer' : ''), vt(a, r[4])));
+      var mid = el('div', 'mid');
+      mid.appendChild(el('div', 'l', r[0]));
+      var bar = el('div', 'r-bar');
+      var ib = el('i'); ib.style.width = (sum ? a / sum * 100 : 50) + '%'; ib.style.background = (FARG[b.k] || ['#4677BA'])[0];
+      var ih = el('i'); ih.style.width = (sum ? c / sum * 100 : 50) + '%'; ih.style.background = (FARG[h.k] || ['#1B4A8A'])[0];
+      ib.style.background = farger[0]; ih.style.background = farger[1];
+      bar.appendChild(ib); bar.appendChild(ih); mid.appendChild(bar);
+      row.appendChild(mid);
+      row.appendChild(el('div', 'v h' + (c > a ? ' mer' : ''), vt(c, r[5])));
+      lg.appendChild(row);
+    });
+
+    // Spelarna
+    var vi = formel === 'plus' ? 'pl' : 'gs';
+    var sp = $('#r-spelare'); sp.textContent = '';
+    [['b', b], ['h', h]].forEach(function (x) {
+      var t = x[1], key = x[0];
+      var hd = el('h3', 'r-laghuvud'); hd.appendChild(smallLogo(t.logo, 28, t.k)); hd.appendChild(document.createTextNode(t.n)); sp.appendChild(hd);
+      var wrap = el('div', 'box short r-tab');
+      var tab = el('table', 'rows r-rows');
+      var th = el('thead'); var tr = el('tr');
+      [['Nr', 'n'], ['Spelare', ''], ['Pos', ''], ['M', 'n'], ['A', 'n'], ['P', 'n'], ['+/−', 'n'], ['Skott', 'n'], ['xG', 'n'],
+       ['Tackl.', 'n'], ['Block', 'n'], ['Tekn.', 'n'], ['Utv.', 'n'], ['Istid', 'n'], [formel === 'plus' ? 'GS+' : 'GS', 'n']]
+        .forEach(function (c) { var e = el('th', c[1], c[0]); tr.appendChild(e); });
+      th.appendChild(tr); tab.appendChild(th);
+      var tb = el('tbody');
+      (R.spelare[key] || []).forEach(function (p) {
+        var r = el('tr');
+        cell(r, p.nr, 'n m');
+        cell(r, spelarLank(p.n, p.id), 'nm');
+        cell(r, p.pos, 'm');
+        cell(r, p.g, 'n' + (p.g ? ' fet' : ''));
+        cell(r, p.a, 'n' + (p.a ? ' fet' : ''));
+        cell(r, p.p, 'n' + (p.p ? ' fet' : ''));
+        cell(r, tecken(p.pm), 'n');
+        cell(r, p.s, 'n');
+        cell(r, p.xg == null ? '–' : p.xg.toFixed(2), 'n m');
+        cell(r, p.hit, 'n');
+        cell(r, p.blk, 'n');
+        cell(r, (p.fo[0] || p.fo[1]) ? p.fo[0] + '–' + p.fo[1] : '–', 'n m');
+        cell(r, p.pim, 'n');
+        cell(r, tid(p.toi), 'n');
+        var v = p[vi]; var c = cell(r, v == null ? '–' : f2(v), 'n fet'); if (v != null) c.style.color = v < 0 ? 'var(--svag)' : 'var(--ink)';
+        tb.appendChild(r);
+      });
+      tab.appendChild(tb); wrap.appendChild(tab); sp.appendChild(wrap);
+      var mv = (R.mv || {})[key] || [];
+      if (mv.length) {
+        var w2 = el('div', 'box short r-tab');
+        var t2 = el('table', 'rows r-rows');
+        var h2 = el('thead'); var r2 = el('tr');
+        [['Nr', 'n'], ['Målvakt', ''], ['Skott mot', 'n'], ['Räddn.', 'n'], ['Insl.', 'n'], ['Rädd.%', 'n'], ['GSAx', 'n'], ['Istid', 'n'], ['Beslut', ''], [formel === 'plus' ? 'GS+' : 'GS', 'n']]
+          .forEach(function (c) { r2.appendChild(el('th', c[1], c[0])); });
+        h2.appendChild(r2); t2.appendChild(h2);
+        var b2 = el('tbody');
+        mv.forEach(function (g) {
+          var r = el('tr');
+          cell(r, g.nr, 'n m'); cell(r, spelarLank(g.n, g.id), 'nm'); cell(r, g.sa, 'n'); cell(r, g.sv, 'n'); cell(r, g.ga, 'n');
+          cell(r, g.svp == null ? '–' : (g.svp * 100).toFixed(1).replace('.', ',') + ' %', 'n');
+          cell(r, g.gsax == null ? '–' : f2(g.gsax), 'n'); cell(r, tid(g.toi), 'n'); cell(r, g.bes || '–', 'm');
+          var v = g[vi]; var c = cell(r, v == null ? '–' : f2(v), 'n fet'); if (v != null) c.style.color = v < 0 ? 'var(--svag)' : 'var(--ink)';
+          b2.appendChild(r);
+        });
+        t2.appendChild(b2); w2.appendChild(t2); sp.appendChild(w2);
+      }
+    });
+  }
+
   function render() {
     var vi = formel === 'plus' ? 3 : 2;
     var b = G.b, h = G.h;
@@ -166,6 +326,7 @@
     if (hasPng) { dl.href = 'bilder/' + G.id + '.png'; dl.setAttribute('download', 'matchkort-' + G.d + '-' + b.k + '-' + h.k + '.png'); }
     document.querySelectorAll('[data-formel]').forEach(function (btn) { btn.setAttribute('aria-pressed', String(btn.dataset.formel === formel)); });
     scale();
+    renderRapport();
   }
 
   document.querySelectorAll('[data-formel]').forEach(function (btn) {
