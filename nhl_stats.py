@@ -251,15 +251,24 @@ def fetch_game(f: Fetcher, g):
     pbp = f.get(f"{WEB}/gamecenter/{gid}/play-by-play", base / "play-by-play.json", age)
     box = f.get(f"{WEB}/gamecenter/{gid}/boxscore", base / "boxscore.json", age)
     shifts_path = base / "byten.json"
-    try:
-        shifts = f.get(f"{STATS}/shiftcharts?cayenneExp=gameId={gid}", shifts_path, age)
-    except Exception:  # noqa: BLE001 – byteslistan är inte nödvändig för grundstatistiken
+
+    def komplett(sh):
+        # NHL lägger ibland upp byteslistan i två steg: först bara målen, senare alla byten.
+        rader = [x for x in (sh or {}).get("data") or [] if x.get("typeCode") in (None, 517) and not x.get("eventDescription")]
+        return len(rader) >= 200
+
+    shifts = None
+    for forsok in range(2):
+        try:
+            shifts = f.get(f"{STATS}/shiftcharts?cayenneExp=gameId={gid}", shifts_path, age)
+        except Exception:  # noqa: BLE001 – byteslistan är inte nödvändig för grundstatistiken
+            shifts = None
+        if komplett(shifts):
+            break
         shifts = None
-    if not shifts or not shifts.get("data"):
-        # NHL lägger ibland upp byteslistorna senare – försök igen nästa körning.
-        if not f.offline:
-            f.forget(shifts_path)
-        shifts = None
+        if f.offline:
+            break
+        f.forget(shifts_path)  # sparad lista är ofullständig: hämta på nytt nu, annars nästa körning
     return pbp, box, shifts
 
 
@@ -872,6 +881,8 @@ def expected_points(SH: pd.DataFrame, P: pd.DataFrame, K=8.0):
                     ta[q] += 1
                     ga_[(g, sit)] += 1
     rate = {k: ga_[k] / gm[k] for k in gm if gm[k] > 0}
+    istid_tot = P.groupby("Spelar-id")["Istid (min)"].sum().to_dict()
+    istid_med = P[P["Byteslista"] == "ja"].groupby("Spelar-id")["Istid (min)"].sum().to_dict()
     snittandel = {"Forward": 0.45, "Back": 0.35}
     rows = []
     for pid in P["Spelar-id"].unique():
@@ -880,7 +891,13 @@ def expected_points(SH: pd.DataFrame, P: pd.DataFrame, K=8.0):
         vant = sum(rate.get((g, s_), snittandel.get(g, 0.4)) * tg[(pid, s_)] for s_ in ("PP", "ÖV"))
         faktor = (ta[pid] + K) / (vant + K)
         xa = bas * faktor
-        rows.append({"Spelar-id": pid, "Förväntade mål": round(egen_x[int(pid)], 2), "Förväntade assist": round(xa, 2)})
+        # matcher utan byteslista: räkna upp efter andelen istid som saknar uppgift om vilka som var på isen
+        tot, med = istid_tot.get(pid, 0), istid_med.get(pid, 0)
+        if med > 0:
+            xa *= tot / med
+        elif tot > 0:
+            xa = None
+        rows.append({"Spelar-id": pid, "Förväntade mål": round(egen_x[int(pid)], 2), "Förväntade assist": None if xa is None else round(xa, 2)})
     X = pd.DataFrame(rows)
     X["Förväntade poäng"] = (X["Förväntade mål"] + X["Förväntade assist"]).round(2)
     return X
