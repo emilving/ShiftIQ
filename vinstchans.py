@@ -108,7 +108,7 @@ def _dagen_fore(datum: str) -> str:
     return (dt.date.fromisoformat(datum) - dt.timedelta(days=1)).isoformat()
 
 
-def prognoser(T: pd.DataFrame) -> pd.DataFrame:
+def prognoser(T: pd.DataFrame, GK=None, forra_lag=None, forra_mv=None) -> pd.DataFrame:
     """Prognos före varje spelad match, räknad bara på matcher som spelats innan."""
     rows = lagmatcher(T)
     if rows.empty:
@@ -161,7 +161,7 @@ def lagfakta(rows: pd.DataFrame):
     return ut
 
 
-def kommande(T: pd.DataFrame, matcher: list) -> pd.DataFrame:
+def kommande(T: pd.DataFrame, matcher: list, GK=None, forra_lag=None, forra_mv=None) -> pd.DataFrame:
     """Prognos för kommande matcher. `matcher` kommer från NHL:s schema."""
     if not matcher:
         return pd.DataFrame()

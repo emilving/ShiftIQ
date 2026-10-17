@@ -903,6 +903,33 @@ def expected_points(SH: pd.DataFrame, P: pd.DataFrame, K=8.0):
     return X
 
 
+def fetch_last_season(f: Fetcher, season):
+    """Förra säsongens lag- och målvaktssiffror från NHL. Används som utgångsläge i vinstchansen tidigt på säsongen."""
+    y = int(str(season)[:4])
+    prev = f"{y - 1}{y}"
+    out = {}
+    for namn, url in (("lag", f"{STATS}/team/summary?limit=100&cayenneExp=seasonId={prev}%20and%20gameTypeId=2"),
+                      ("mv", f"{STATS}/goalie/summary?limit=200&cayenneExp=seasonId={prev}%20and%20gameTypeId=2")):
+        try:
+            data = f.get(url, f.root / "forra_sasongen" / f"{namn}_{prev}.json")
+            out[namn] = pd.DataFrame(data.get("data") or [])
+        except Exception as e:  # noqa: BLE001
+            log(f"  Förra säsongens {namn}-siffror kunde inte hämtas: {type(e).__name__}")
+            out[namn] = pd.DataFrame()
+    lag = out["lag"]
+    if len(lag):
+        keep = {"teamId": "Lag-id", "teamFullName": "Lag", "gamesPlayed": "Matcher", "goalsForPerGame": "Mål/match",
+                "goalsAgainstPerGame": "Insläppta/match", "shotsForPerGame": "Skott/match", "shotsAgainstPerGame": "Skott mot/match",
+                "powerPlayPct": "PP-%", "penaltyKillPct": "Boxplay-%", "pointPct": "Poängprocent"}
+        lag = lag[[c for c in keep if c in lag]].rename(columns=keep)
+    mv = out["mv"]
+    if len(mv):
+        keep = {"playerId": "Spelar-id", "goalieFullName": "Spelare", "gamesPlayed": "Matcher", "gamesStarted": "Starter",
+                "shotsAgainst": "Skott mot", "saves": "Räddningar", "goalsAgainst": "Insläppta", "savePct": "Räddnings-%"}
+        mv = mv[[c for c in keep if c in mv]].rename(columns=keep)
+    return lag, mv
+
+
 def season_tables(per_game: pd.DataFrame, goalies: pd.DataFrame, teams: pd.DataFrame):
     sum_cols = [c for c in per_game.columns if c in blank_skater() or c in ("Poäng", "Game Score", "Game Score+", "Istid (min)",
                                                                              "Istid 5v5 (min)", "Istid PP (min)",
@@ -1233,16 +1260,18 @@ def main(argv=None):
 
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import vinstchans as VC
+    forra_lag, forra_mv = fetch_last_season(f, season)
     try:
-        progn = VC.prognoser(T_out)
-        komm = VC.kommande(T_out, upcoming)
+        progn = VC.prognoser(T_out, GK, forra_lag, forra_mv)
+        komm = VC.kommande(T_out, upcoming, GK, forra_lag, forra_mv)
     except Exception as e:  # noqa: BLE001 – vinstchansen får aldrig stoppa resten
         problems.append(f"Vinstchansen kunde inte räknas: {type(e).__name__}: {e}")
         progn, komm = pd.DataFrame(), pd.DataFrame()
 
     tables = {"Spelare": S, "Målvakter": G, "Lag": L, "Vinstchans": komm, "Per match": per_game_out,
               "Målvakter per match": GK, "Lag per match": T_out, "Matcher": matches, "Prognoser": progn,
-              "Skott": shots_out, "Straffläggningar": pd.DataFrame(shootout)}
+              "Skott": shots_out, "Straffläggningar": pd.DataFrame(shootout),
+              "Lag förra säsongen": forra_lag, "Målvakter förra säsongen": forra_mv}
 
     if a.edge:
         log("Hämtar NHL Edge-data …")
