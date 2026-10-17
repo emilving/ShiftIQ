@@ -5,6 +5,9 @@ on:
     # Varje dag 07:17 UTC = 09:17 svensk sommartid, 08:17 vintertid.
     # Då har alla nordamerikanska kvällsmatcher hunnit bli klara.
     - cron: "17 7 * * *"
+    # Kvällskörning 17:47 UTC = 19:47 svensk sommartid, 18:47 vintertid.
+    # Uppdaterar vinstchansen inför kvällens matcher.
+    - cron: "47 17 * * *"
   workflow_dispatch: # gör att du kan starta en körning för hand under fliken Actions
 
 permissions:

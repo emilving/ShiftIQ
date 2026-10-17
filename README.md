@@ -32,7 +32,7 @@ Allt körs gratis på GitHub. Du behöver inte ha datorn igång.
 6. **Starta första körningen.** Gå till fliken **Actions** och välj **Slotline – uppdatera statistik**. Klicka på **Run workflow** och sedan på den gröna **Run workflow**. Första gången tar det 30–45 minuter, sedan några minuter per dag.
 7. **Klart.** Sidan ligger på `https://DITT-ANVÄNDARNAMN.github.io/slotline/`.
 
-Därefter uppdateras allt automatiskt varje morgon vid nio, svensk tid.
+Därefter uppdateras allt automatiskt varje morgon vid nio och varje kväll runt halv åtta, svensk tid.
 
 ## Uppdatera från en tidigare version
 
